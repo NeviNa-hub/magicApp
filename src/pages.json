@@ -9,7 +9,7 @@
     {
       "path": "pages/workbench/index",
       "style": {
-        "navigationBarTitleText": "workbench"
+        "navigationBarTitleText": "落笔生花"
       }
     },
     {
@@ -34,6 +34,12 @@
       "path": "pages/image-generation/index",
       "style": {
         "navigationBarTitleText": "画卷生成中"
+      }
+    },
+    {
+      "path": "pages/library/index",
+      "style": {
+        "navigationBarTitleText": "作品库"
       }
     }
   ],
