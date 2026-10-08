@@ -17,6 +17,24 @@
       "style": {
         "navigationBarTitleText": "文字生图"
       }
+    },
+    {
+      "path": "pages/image-style/index",
+      "style": {
+        "navigationBarTitleText": "挑选画风"
+      }
+    },
+    {
+      "path": "pages/image-canvas/index",
+      "style": {
+        "navigationBarTitleText": "设定画幅"
+      }
+    },
+    {
+      "path": "pages/image-generation/index",
+      "style": {
+        "navigationBarTitleText": "画卷生成中"
+      }
     }
   ],
   "globalStyle": {
