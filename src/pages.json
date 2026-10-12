@@ -3,13 +3,13 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "home"
+        "navigationBarTitleText": "妙笔生花"
       }
     },
     {
       "path": "pages/workbench/index",
       "style": {
-        "navigationBarTitleText": "落笔生花"
+        "navigationBarTitleText": "妙笔生花"
       }
     },
     {
@@ -37,15 +37,27 @@
       }
     },
     {
+      "path": "pages/image-optimization/index",
+      "style": {
+        "navigationBarTitleText": "图片优化"
+      }
+    },
+    {
       "path": "pages/library/index",
       "style": {
         "navigationBarTitleText": "作品库"
+      }
+    },
+    {
+      "path": "pages/under-development/index",
+      "style": {
+        "navigationBarTitleText": "功能建设中"
       }
     }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "home",
+    "navigationBarTitleText": "妙笔生花",
     "navigationBarBackgroundColor": "#F8F8F8",
     "backgroundColor": "#F8F8F8"
   },
