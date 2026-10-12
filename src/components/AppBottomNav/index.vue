@@ -7,22 +7,18 @@
       :class="{ 'is-active': active === item.key }"
       @tap="navigateTo(item)"
     >
-      <app-icon class="nav-icon" :name="item.icon" />
       <text>{{ item.label }}</text>
     </view>
   </view>
 </template>
 
 <script setup>
-import AppIcon from "@/components/AppIcon/index.vue";
-
 const NAV_ITEMS = [
-  { key: "drafts", icon: "grid", label: "文稿库", url: "/pages/index/index" },
-  { key: "creation", icon: "grid", label: "创作台", url: "/pages/workbench/index" },
-  { key: "works", icon: "grid", label: "作品库", url: "/pages/library/index" },
+  { key: "drafts", label: "文稿库", url: "/pages/index/index" },
+  { key: "creation", label: "创作台", url: "/pages/workbench/index" },
+  { key: "works", label: "作品库", url: "/pages/library/index" },
   {
     key: "workshop",
-    icon: "grid",
     label: "工作坊",
     url: "/pages/under-development/index?title=工作坊",
   },
@@ -75,11 +71,5 @@ const navigateTo = (item) => {
 
 .nav-item.is-active {
   color: #168d84;
-}
-
-.nav-icon {
-  margin-bottom: 6rpx;
-  font-size: 30rpx;
-  line-height: 1;
 }
 </style>

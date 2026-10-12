@@ -21,7 +21,9 @@
         </view>
         <view class="card-footer">
           <text class="footer-note">支持宣纸留白与精细排版</text>
-          <button class="footer-button" @click="startTool('文字生图')">研墨生图</button>
+          <button class="footer-button" @click="startTool('文字生图')">
+            研墨生图
+          </button>
         </view>
       </view>
 
@@ -55,7 +57,10 @@
         </view>
         <view class="card-footer">
           <text class="footer-note">四镜连贯 · 独立成片</text>
-          <button class="footer-button button-blue" @click="startTool('视频创作')">
+          <button
+            class="footer-button button-blue"
+            @click="startTool('视频创作')"
+          >
             逐帧调度
           </button>
         </view>
@@ -86,7 +91,10 @@
         </view>
         <view class="card-footer">
           <text class="footer-note">最大支持五千万像素解析</text>
-          <button class="footer-button button-purple" @click="startTool('图片优化')">
+          <button
+            class="footer-button button-purple"
+            @click="startTool('图片优化')"
+          >
             净炼重绘
           </button>
         </view>
@@ -361,7 +369,13 @@ page {
   min-width: 0;
   margin-left: 20rpx;
   overflow: hidden;
-  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
 }
 
 .film-marquee-track {
@@ -394,7 +408,8 @@ page {
   margin: 20rpx 0;
 }
 
-/* 从左到右逐渐放大：宽度与高度同时递增，模拟胶片分镜的透视感 */
+/* 从左到右逐渐放大：basis 取 auto 保证最小宽度装得下标签，剩余空间按递增比例分配，
+ * 模拟胶片分镜的透视感，且窄屏下文字不会换行 */
 .film-frame {
   overflow: hidden;
   padding: 8rpx;
@@ -406,19 +421,19 @@ page {
 }
 
 .film-frame:nth-child(1) {
-  flex: 0.6;
+  flex: 0.6 1 auto;
 }
 
 .film-frame:nth-child(2) {
-  flex: 0.75;
+  flex: 0.75 1 auto;
 }
 
 .film-frame:nth-child(3) {
-  flex: 0.9;
+  flex: 0.9 1 auto;
 }
 
 .film-frame:nth-child(4) {
-  flex: 1.1;
+  flex: 1.1 1 auto;
   border-color: #50b5ff;
   box-shadow: 0 6rpx 16rpx rgba(50, 156, 232, 0.2);
 }
@@ -454,6 +469,7 @@ page {
 
 .frame-label {
   display: block;
+  white-space: nowrap;
   color: #5a7888;
   font-size: 15rpx;
 }
