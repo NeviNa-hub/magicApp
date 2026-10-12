@@ -461,7 +461,7 @@ page {
 .film-chip {
   padding: 8rpx 14rpx;
   /* border: 1rpx solid #dce7ea; */
-  border: 1rpx solid #ddee48;
+  border: 1rpx solid #ccf7d3;
   border-radius: 18rpx;
   background: #fff;
   color: #60777d;
@@ -533,21 +533,50 @@ page {
 
 .compare-tag {
   position: absolute;
-  z-index: 1;
+  z-index: 3;
   bottom: 82rpx;
   padding: 7rpx 12rpx;
   border-radius: 8rpx;
   background: rgba(62, 75, 85, 0.85);
   color: #fff;
   font-size: 17rpx;
+  opacity: 0;
 }
 
+/* 分界线扫过左侧后淡入（与 compare-wipe 同周期） */
 .tag-original {
   left: 14rpx;
+  animation: tag-original-show 5s ease-in-out infinite;
 }
 
+/* 分界线扫过右侧后淡入 */
 .tag-upscaled {
   right: 14rpx;
+  animation: tag-upscaled-show 5s ease-in-out infinite;
+}
+
+@keyframes tag-original-show {
+  0%,
+  8% {
+    opacity: 0;
+  }
+
+  14%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes tag-upscaled-show {
+  0%,
+  40% {
+    opacity: 0;
+  }
+
+  45%,
+  100% {
+    opacity: 1;
+  }
 }
 
 .compare-caption {
