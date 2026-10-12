@@ -2,85 +2,105 @@
   <view class="workbench-page">
     <app-page-header title="创作台" />
     <scroll-view scroll-y :show-scrollbar="false" class="content">
-      <view class="tool card teal">
-        <view class="heading">
-          <text class="index">01</text>
-          <text class="title">文字生图</text>
-          <text class="tag">墨韵·宣</text>
-          <text class="ready"> 向导就绪</text>
+      <!-- 01 文字生图 -->
+      <view class="tool-card tool-teal">
+        <view class="card-heading">
+          <text class="card-title">文字生图</text>
+          <text class="card-tag">墨韵·宣</text>
+          <text class="card-ready">向导就绪</text>
         </view>
-        <text class="desc">三步流式构思，从画风择定到纸墨挥毫。</text>
-        <view class="image-preview">
+        <text class="card-desc">三步流式构思，从画风择定到纸墨挥毫。</text>
+        <view class="card-art">
           <image
-            class="theme-image"
+            class="art-image"
             src="/static/theme/theme-images.png"
             mode="aspectFill"
           />
-          <view class="ink"></view>
-          <text class="chip one">留白神韵</text>
-          <text class="chip two">青绿工笔</text>
+          <text class="art-chip chip-left">留白神韵</text>
+          <text class="art-chip chip-right">青绿工笔</text>
         </view>
-        <view class="footer">
-          <text>支持宣纸留白与精细排版</text>
-          <button @click="startTool('文字生图')">研墨生图</button>
+        <view class="card-footer">
+          <text class="footer-note">支持宣纸留白与精细排版</text>
+          <button class="footer-button" @click="startTool('文字生图')">研墨生图</button>
         </view>
       </view>
-      <view class="tool card blue">
-        <view class="heading">
-          <text class="index">02</text>
-          <text class="title">视频创作</text>
-          <text class="tag blue-tag">流光·镜</text>
-          <text class="ready blue-text"> 多镜连贯</text>
+
+      <!-- 02 视频创作 -->
+      <view class="tool-card tool-blue">
+        <view class="card-heading">
+          <text class="card-title">视频创作</text>
+          <text class="card-tag tag-blue">流光·镜</text>
+          <text class="card-ready ready-blue">多镜连贯</text>
         </view>
-        <text class="desc">精准掌控光影轨迹与运镜调度，独立成片。</text>
-        <view class="film">
-          <text> 水墨分镜胶卷轨道 <small>4段连贯 · 00:04</small></text>
-          <view class="frames">
-            <view v-for="frame in frames" :key="frame">
-              <i></i>
-              <small>{{ frame }}</small>
+        <text class="card-desc">精准掌控光影轨迹与运镜调度，独立成片。</text>
+        <view class="film-art">
+          <view class="film-title">
+            <text class="film-name">水墨分镜胶卷轨道</text>
+            <view class="film-marquee">
+              <view class="film-marquee-track">
+                <view v-for="copy in 2" :key="copy" class="film-marquee-group">
+                  <text v-for="chip in filmChips" :key="chip" class="film-chip">
+                    {{ chip }}
+                  </text>
+                </view>
+              </view>
             </view>
           </view>
-          <view class="film-chip">
-            <text>四开画幅</text>
-            <text>轨迹平滑</text>
-            <text>60FPS 帧率</text>
+          <view class="film-frames">
+            <view v-for="frame in frames" :key="frame" class="film-frame">
+              <i class="frame-thumb"></i>
+              <small class="frame-label">{{ frame }}</small>
+            </view>
           </view>
         </view>
-        <view class="footer">
-          <button class="blue-button" @click="startTool('视频创作')">逐帧调度</button>
+        <view class="card-footer">
+          <text class="footer-note">四镜连贯 · 独立成片</text>
+          <button class="footer-button button-blue" @click="startTool('视频创作')">
+            逐帧调度
+          </button>
         </view>
       </view>
-      <view class="tool card purple">
-        <view class="heading">
-          <text class="index">03</text>
-          <text class="title">图片优化</text>
-          <text class="tag purple-tag">净辞·重塑</text>
-          <text class="ready purple-text"> 无损超分</text>
+
+      <!-- 03 图片优化 -->
+      <view class="tool-card tool-purple">
+        <view class="card-heading">
+          <text class="card-title">图片优化</text>
+          <text class="card-tag tag-purple">净辞·重塑</text>
+          <text class="card-ready ready-purple">无损超分</text>
         </view>
-        <text class="desc">还原本真质感，微米级去噪与旧照色彩修复。</text>
-        <view class="compare">
+        <text class="card-desc">还原本真质感，微米级去噪与旧照色彩修复。</text>
+        <view class="compare-art">
           <image
-            class="optimization-image"
-            src="/static/theme/theme-optimization.png"
+            class="art-image compare-before"
+            src="/static/theme/theme-optimization-before.png"
             mode="aspectFill"
           />
-          <view class="old"></view>
-          <view class="new"></view>
-          <text class="handle">↔</text>
-          <text class="compare-tag left">原片 · 噪点暗旧</text>
-          <text class="compare-tag right">超清 · 纤毫毕现</text>
-          <view class="compare-bottom">4K 超清晰　 旧影修复　 自然去噪</view>
+          <image
+            class="art-image compare-after"
+            src="/static/theme/theme-optimization-after.png"
+            mode="aspectFill"
+          />
+          <text class="compare-handle">↔</text>
+          <text class="compare-tag tag-original">旧影修复</text>
+          <text class="compare-tag tag-upscaled">纤毫毕现</text>
         </view>
-        <view class="footer">
-          <text> 最大支持五千万像素解析</text>
-          <button class="purple-button" @click="startTool('图片优化')">净炼重绘</button>
+        <view class="card-footer">
+          <text class="footer-note">最大支持五千万像素解析</text>
+          <button class="footer-button button-purple" @click="startTool('图片优化')">
+            净炼重绘
+          </button>
         </view>
       </view>
-      <view class="draft card">
-        <view class="draft-title">草稿与便签库 <small>完整归档</small></view>
+
+      <!-- 草稿与便签库 -->
+      <view class="draft-card">
+        <view class="draft-title">
+          <text>草稿与便签库</text>
+          <text class="draft-subtitle">完整归档</text>
+        </view>
         <view v-for="draft in drafts" :key="draft.draft_id" class="draft-row">
-          {{ draft.title }} · {{ draft.time }} <b>{{ draft.status }}</b>
+          <text class="draft-name">{{ draft.title }} · {{ draft.time }}</text>
+          <text class="draft-status">{{ draft.status }}</text>
         </view>
       </view>
     </scroll-view>
@@ -97,6 +117,7 @@ import AppPageHeader from "@/components/AppPageHeader/index.vue";
 
 const frames = ref([]);
 const drafts = ref([]);
+const filmChips = ["四开画幅", "轨迹平滑", "60FPS 帧率"];
 
 /**
  * 根据工具名称进入对应创作流程或公共待开发页。
@@ -148,429 +169,315 @@ page {
   box-sizing: border-box;
 }
 
-.card {
+/* ========== 工具卡片通用结构 ========== */
+.tool-card {
   margin-bottom: 26rpx;
   padding: 24rpx;
-  border: 1rpx solid #dce7eb;
   border-radius: 28rpx;
   background: #fff;
 }
 
-.tool.card {
-  position: relative;
-  overflow: visible;
-  padding-bottom: 82rpx;
-  border: 0;
+.tool-teal {
+  box-shadow: 0 2rpx 10rpx rgba(41, 185, 169, 0.18);
 }
 
-.tool.card.teal {
-  /* box-shadow: 0 0 26rpx 6rpx rgba(41, 185, 169, 0.26),
-    0 12rpx 30rpx rgba(41, 185, 169, 0.18); */
+.tool-blue {
+  box-shadow: 0 2rpx 10rpx rgba(50, 156, 232, 0.18);
 }
 
-.tool.card.blue {
-  padding-bottom: 24rpx;
-  /* box-shadow: 0 0 26rpx 6rpx rgba(50, 156, 232, 0.25),
-    0 12rpx 30rpx rgba(50, 156, 232, 0.17); */
+.tool-purple {
+  box-shadow: 0 2rpx 10rpx rgba(94, 81, 214, 0.18);
 }
 
-.tool.card.purple {
-  /* box-shadow: 0 0 26rpx 6rpx rgba(94, 81, 214, 0.25),
-    0 12rpx 30rpx rgba(94, 81, 214, 0.17); */
-}
-
-.heading,
-.footer {
+/* 卡片标题行 */
+.card-heading {
   display: flex;
   align-items: center;
 }
 
-/* 序号标签暂不展示 */
-.index {
-  display: none;
-  padding: 8rpx 14rpx;
-  border: 1rpx solid #65d9d1;
-  border-radius: 10rpx;
-  color: #128d84;
-  font-size: 20rpx;
+.card-title {
+  font: 700 30rpx serif;
 }
 
-.title {
-  margin-left: 18rpx;
-  font: 700 29rpx serif;
-}
-
-.tag {
+.card-tag {
   margin-left: 16rpx;
-  padding: 6rpx 10rpx;
+  padding: 6rpx 12rpx;
   border: 1rpx solid #ff6b6b;
+  border-radius: 8rpx;
   color: #ed5757;
-  font-size: 20rpx;
+  font-size: 18rpx;
 }
 
-.blue-tag {
+.tag-blue {
   border-color: #51a9ff;
   color: #288ad9;
 }
 
-.purple-tag {
+.tag-purple {
   border-color: #7476ff;
   color: #595bdc;
 }
 
-.ready {
+.card-ready {
   margin-left: auto;
   color: #179a90;
   font-size: 20rpx;
 }
 
-.blue-text {
+.ready-blue {
   color: #168fd5;
 }
 
-.purple-text {
+.ready-purple {
   color: #514ed5;
 }
 
-.desc {
+/* 卡片描述 */
+.card-desc {
   display: block;
-  margin: 20rpx 0;
+  margin: 16rpx 0 20rpx;
   color: #637980;
   font-size: 21rpx;
 }
 
-.image-preview,
-.film,
-.compare {
+/* 插图画区 */
+.card-art,
+.film-art,
+.compare-art {
+  position: relative;
+  height: 320rpx;
+  overflow: hidden;
   border-radius: 22rpx;
-  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.45);
 }
 
-.theme-image,
-.optimization-image {
+.art-image {
   position: absolute;
   inset: 0;
-  z-index: 0;
   width: 100%;
   height: 100%;
 }
 
-.image-preview {
-  position: relative;
-  height: 300rpx;
-  overflow: hidden;
-  border: 1rpx solid #e2d9cd;
-  background: linear-gradient(140deg, #eee8dc, #c5d0ce);
+/* 卡片底部（说明 + 按钮） */
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22rpx;
 }
 
-/* 预览改由封面图呈现，水墨装饰层暂不展示 */
-.image-preview .ink {
-  display: none;
-  position: absolute;
-  left: 24%;
-  bottom: -60rpx;
-  width: 320rpx;
-  height: 200rpx;
-  border-radius: 50%;
-  background: #91a8a2;
-  transform: rotate(35deg);
-}
-
-.image-preview .chip,
-.compare .handle,
-.compare .compare-tag,
-.compare .compare-bottom {
-  z-index: 1;
-}
-
-.chip,
-.compare-tag {
-  position: absolute;
-  padding: 7rpx 10rpx;
-  border-radius: 8rpx;
-  background: #3e4b55;
-  color: #fff;
-  font-size: 17rpx;
-}
-
-.chip {
-  bottom: 14rpx;
-  background: #fff;
-  color: #60747b;
-}
-
-.one {
-  left: 16rpx;
-}
-
-.two {
-  left: 150rpx;
-}
-
-.film {
-  background: #f2f8ff;
-  color: #17628a;
+.footer-note {
+  color: #65777e;
   font-size: 20rpx;
 }
 
-.film small {
-  float: right;
-  color: #92a3ac;
+.footer-button {
+  margin: 0;
+  height: 56rpx;
+  padding: 0 24rpx;
+  border: 0;
+  border-radius: 20rpx;
+  background: #08776e;
+  color: #fff;
+  font-size: 20rpx;
+  line-height: 56rpx;
 }
 
-.tool.card.blue .film {
-  height: 360rpx;
-  min-height: 360rpx;
-  padding: 22rpx;
+.footer-button:after {
   border: 0;
-  border-radius: 24rpx;
+}
+
+.button-blue {
+  background: #00699b;
+}
+
+.button-purple {
+  background: #302693;
+}
+
+/* ========== 01 文字生图 · 插图角标 ========== */
+.art-chip {
+  position: absolute;
+  bottom: 14rpx;
+  padding: 6rpx 12rpx;
+  border-radius: 8rpx;
+  background: rgba(255, 255, 255, 0.9);
+  color: #60747b;
+  font-size: 17rpx;
+  animation: chip-shake 4s ease-in-out infinite;
+}
+
+.chip-left {
+  left: 16rpx;
+}
+
+.chip-right {
+  left: 156rpx;
+  /* 与左侧错开摇晃时机，避免两个角标同步晃动 */
+  animation-delay: 2s;
+}
+
+@keyframes chip-shake {
+  0%,
+  88%,
+  100% {
+    transform: rotate(0); /* 静止 */
+  }
+
+  93% {
+    transform: rotate(-8deg); /* 左摆 */
+  }
+
+  97% {
+    transform: rotate(8deg); /* 右摆 */
+  }
+}
+
+/* ========== 02 视频创作 · 胶卷 ========== */
+.film-art {
+  padding: 22rpx;
+  box-sizing: border-box;
   background: linear-gradient(180deg, #e5f3fb 0%, #f5fbfd 54%, #fff 100%);
   box-shadow: inset 0 0 0 1rpx #d7eaf5;
 }
 
-.tool.card.blue .film > text:first-child {
-  display: block;
+.film-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding-bottom: 16rpx;
   border-bottom: 1rpx solid #d8e8f0;
+}
+
+.film-name {
+  flex-shrink: 0;
   color: #174f70;
   font-size: 21rpx;
   font-weight: 700;
 }
 
-.frames {
-  display: flex;
-  gap: 10rpx;
-  margin: 18rpx 0;
-}
-
-.frames view {
+/* 弹幕滚动区：两组相同内容循环位移，实现无缝滚动 */
+.film-marquee {
   flex: 1;
+  min-width: 0;
+  margin-left: 20rpx;
   overflow: hidden;
-  border: 1rpx solid #8fb9d9;
-  border-radius: 8rpx;
-  color: #41677d;
-  font-size: 15rpx;
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
 
-.frames i {
-  display: block;
-  height: 90rpx;
-  margin: 4rpx;
-  background: linear-gradient(145deg, #b9c7c9, #e4ddd0);
+.film-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: film-chip-scroll 12s linear infinite;
 }
 
-.frames small {
-  display: block;
-  padding: 4rpx;
-  text-align: center;
+.film-marquee-group {
+  display: flex;
+  gap: 12rpx;
+  padding-right: 12rpx;
 }
 
-.tool.card.blue .frames {
+@keyframes film-chip-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.film-meta {
+  color: #92a3ac;
+  font-size: 18rpx;
+}
+
+.film-frames {
+  display: flex;
   align-items: flex-end;
   gap: 14rpx;
+  margin: 20rpx 0;
 }
 
-.tool.card.blue .frames view {
+/* 从左到右逐渐放大：宽度与高度同时递增，模拟胶片分镜的透视感 */
+.film-frame {
+  overflow: hidden;
   padding: 8rpx;
   border: 1rpx solid #a9cde4;
   border-radius: 14rpx;
   background: #fff;
-  color: #5a7888;
   text-align: center;
+  box-sizing: border-box;
 }
 
-.tool.card.blue .frames view:nth-child(1) {
+.film-frame:nth-child(1) {
   flex: 0.6;
 }
 
-.tool.card.blue .frames view:nth-child(2) {
+.film-frame:nth-child(2) {
   flex: 0.75;
 }
 
-.tool.card.blue .frames view:nth-child(3) {
-  flex: 0.85;
+.film-frame:nth-child(3) {
+  flex: 0.9;
 }
 
-.tool.card.blue .frames view:nth-child(4) {
-  flex: 1;
+.film-frame:nth-child(4) {
+  flex: 1.1;
   border-color: #50b5ff;
   box-shadow: 0 6rpx 16rpx rgba(50, 156, 232, 0.2);
 }
 
-.tool.card.blue .frames i {
-  height: 120rpx;
-  margin: 0 0 8rpx;
+.frame-thumb {
+  display: block;
+  height: 88rpx;
+  margin-bottom: 8rpx;
   border-radius: 8rpx;
   background-position: center;
   background-size: cover;
 }
 
-.tool.card.blue .frames view:nth-child(1) i {
+.film-frame:nth-child(1) .frame-thumb {
   height: 88rpx;
   background-image: url("../../assets/theme/theme-videos-1.png");
 }
 
-.tool.card.blue .frames view:nth-child(2) i {
-  height: 104rpx;
+.film-frame:nth-child(2) .frame-thumb {
+  height: 110rpx;
   background-image: url("../../assets/theme/theme-videos-2.png");
 }
 
-.tool.card.blue .frames view:nth-child(3) i {
-  height: 120rpx;
+.film-frame:nth-child(3) .frame-thumb {
+  height: 132rpx;
   background-image: url("../../assets/theme/theme-videos-3.png");
 }
 
-.tool.card.blue .frames view:nth-child(4) i {
-  height: 140rpx;
+.film-frame:nth-child(4) .frame-thumb {
+  height: 156rpx;
   background-image: url("../../assets/theme/theme-videos-1.png");
 }
 
-.tool.card.blue .film-chip {
-  display: flex;
-  width: auto;
-  gap: 12rpx;
-  align-items: center;
-  justify-content: flex-start;
+.frame-label {
+  display: block;
+  color: #5a7888;
+  font-size: 15rpx;
 }
 
-.tool.card.blue .film-chip text {
+.film-chip {
   padding: 8rpx 14rpx;
-  border: 1rpx solid #dce7ea;
+  /* border: 1rpx solid #dce7ea; */
+  border: 1rpx solid #ddee48;
   border-radius: 18rpx;
   background: #fff;
   color: #60777d;
   font-size: 17rpx;
-  letter-spacing: 0;
-  white-space: nowrap;
 }
 
-.footer {
-  justify-content: space-between;
-  margin-top: 22rpx;
-  color: #65777e;
-  font-size: 20rpx;
+/* ========== 03 图片优化 · 对比图 ========== */
+.compare-art {
+  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.45);
 }
 
-.tool .footer {
+.compare-handle {
   position: absolute;
-  right: 26rpx;
-  bottom: 20rpx;
-  left: 26rpx;
-  margin-top: 0;
-}
-
-.footer button {
-  height: 52rpx;
-  margin-left: auto;
-  padding: 0 18rpx;
-  border: 0;
-  border-radius: 20rpx;
-  outline: none;
-  background: #08776e;
-  color: #fff;
-  font-size: 20rpx;
-  flex-shrink: 0;
-}
-
-.footer button:after {
-  border: 0;
-}
-
-.footer button.blue-button {
-  background: #00699b;
-}
-
-.footer button.purple-button {
-  background: #302693;
-}
-
-.tool .footer button {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  min-width: 118rpx;
-  overflow: hidden;
-  box-shadow: 0 8rpx 18rpx rgba(0, 137, 126, 0.35);
-}
-
-.tool.blue .footer button {
-  box-shadow: 0 8rpx 18rpx rgba(0, 105, 155, 0.35);
-}
-
-.tool.purple .footer button {
-  box-shadow: 0 8rpx 18rpx rgba(48, 38, 147, 0.35);
-}
-
-.tool .footer button:before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -80%;
-  width: 45%;
-  background: linear-gradient(
-    100deg,
-    transparent,
-    rgba(255, 255, 255, 0.65),
-    transparent
-  );
-  transform: skewX(-20deg);
-  animation: button-shimmer 2.8s infinite;
-}
-
-@keyframes button-shimmer {
-  0% {
-    left: -80%;
-  }
-
-  55%,
-  100% {
-    left: 140%;
-  }
-}
-
-.tool.card.blue .footer {
-  bottom: 16rpx;
-  height: 0;
-}
-
-.tool.card.blue .footer button {
-  bottom: 90rpx;
-}
-
-.compare {
-  position: relative;
-  height: 300rpx;
-  overflow: hidden;
-  border: 1rpx solid #657191;
-  background: #999;
-}
-
-/* 对比效果改由封面图呈现，旧/新分屏图层暂不展示 */
-.compare .old,
-.compare .new {
-  display: none;
-  position: absolute;
-  top: 0;
-  bottom: 66rpx;
-  width: 50%;
-}
-
-.compare .old {
-  left: 0;
-  background: linear-gradient(135deg, #c6c6c6, #777);
-  filter: grayscale(1);
-}
-
-.compare .new {
-  right: 0;
-  background: linear-gradient(135deg, #222, #aaa);
-}
-
-.compare .handle {
-  position: absolute;
+  z-index: 3;
   top: 42%;
-  left: calc(50% - 23rpx);
+  left: 2%;
   width: 46rpx;
   height: 46rpx;
   border-radius: 50%;
@@ -578,43 +485,110 @@ page {
   color: #595bdc;
   line-height: 46rpx;
   text-align: center;
+  font-size: 26rpx;
+  animation: handle-sweep 5s ease-in-out infinite;
 }
 
-.compare .compare-tag {
+/* 优化前铺底、优化后从左到右擦除显示，停留后收回并循环 */
+.compare-before {
+  z-index: 1;
+}
+
+.compare-after {
+  z-index: 2;
+  clip-path: inset(0 100% 0 0);
+  animation: compare-wipe 5s ease-in-out infinite;
+}
+
+/* 3 秒擦入、2 秒停留后回到起点循环 */
+@keyframes compare-wipe {
+  0% {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  60%,
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* 手柄跟随擦除分界线移动，擦完后淡出 */
+@keyframes handle-sweep {
+  0% {
+    left: 1%;
+    opacity: 0;
+  }
+
+  60% {
+    left: 92%;
+    opacity: 1;
+  }
+
+  70%,
+  100% {
+    left: 96%;
+    opacity: 0;
+  }
+}
+
+.compare-tag {
+  position: absolute;
+  z-index: 1;
   bottom: 82rpx;
+  padding: 7rpx 12rpx;
+  border-radius: 8rpx;
+  background: rgba(62, 75, 85, 0.85);
+  color: #fff;
+  font-size: 17rpx;
 }
 
-.left {
-  left: 12rpx;
+.tag-original {
+  left: 14rpx;
 }
 
-.right {
-  right: 12rpx;
+.tag-upscaled {
+  right: 14rpx;
 }
 
-.compare .compare-bottom {
+.compare-caption {
   position: absolute;
   bottom: 0;
+  left: 0;
   width: 100%;
   height: 66rpx;
-  background: #7c8299;
+  background: rgba(124, 130, 153, 0.92);
   color: #fff;
   font-size: 18rpx;
   line-height: 66rpx;
   text-align: center;
 }
 
+/* ========== 草稿与便签库 ========== */
+.draft-card {
+  margin-bottom: 26rpx;
+  padding: 24rpx;
+  border: 1rpx solid #dce7eb;
+  border-radius: 28rpx;
+  background: #fff;
+}
+
 .draft-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6rpx;
   font: 700 29rpx serif;
 }
 
-.draft-title small {
-  float: right;
+.draft-subtitle {
   color: #75868c;
-  font: 20rpx sans-serif;
+  font: 19rpx sans-serif;
 }
 
 .draft-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-top: 12rpx;
   padding: 22rpx 18rpx;
   border: 1rpx solid #e7e8e8;
@@ -623,12 +597,195 @@ page {
   font-size: 20rpx;
 }
 
-.draft-row b {
-  float: right;
+.draft-status {
   padding: 5rpx 12rpx;
   border: 1rpx solid #85e4da;
   border-radius: 8rpx;
   color: #159d92;
-  font-weight: 400;
+  font-size: 18rpx;
+}
+
+/* ============================================================
+ * 桌面 H5 适配：992px 以上切换为固定像素 + 双列栅格
+ * ============================================================ */
+@media (min-width: 992px) {
+  .content {
+    height: calc(100vh - 160px);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 24px 60px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-content: start;
+  }
+
+  /* 前两张工具卡并列，第三张占整行更聚焦 */
+  .tool-card {
+    margin-bottom: 0;
+    padding: 22px;
+    border-radius: 16px;
+  }
+
+  .tool-purple {
+    grid-column: 1 / -1;
+  }
+
+  .draft-card {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+    padding: 22px;
+    border-radius: 16px;
+  }
+
+  /* 标题行 */
+  .card-title {
+    font-size: 18px;
+  }
+
+  .card-tag {
+    margin-left: 10px;
+    padding: 3px 8px;
+    font-size: 12px;
+  }
+
+  .card-ready {
+    font-size: 13px;
+  }
+
+  .card-desc {
+    margin: 10px 0 14px;
+    font-size: 14px;
+  }
+
+  /* 插图画区 */
+  .card-art,
+  .film-art,
+  .compare-art {
+    height: 220px;
+    border-radius: 12px;
+  }
+
+  .art-chip {
+    bottom: 10px;
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .chip-left {
+    left: 12px;
+  }
+
+  .chip-right {
+    left: 110px;
+  }
+
+  /* 底部说明 + 按钮 */
+  .card-footer {
+    margin-top: 16px;
+  }
+
+  .footer-note {
+    font-size: 13px;
+  }
+
+  .footer-button {
+    height: 36px;
+    padding: 0 20px;
+    font-size: 13px;
+    line-height: 36px;
+  }
+
+  /* 胶卷 */
+  .film-art {
+    padding: 16px;
+  }
+
+  .film-name {
+    font-size: 14px;
+  }
+
+  .film-meta {
+    font-size: 12px;
+  }
+
+  .film-frames {
+    gap: 10px;
+    margin: 14px 0;
+  }
+
+  .film-frame {
+    padding: 6px;
+    border-radius: 10px;
+  }
+
+  .film-frame:nth-child(1) .frame-thumb {
+    height: 60px;
+  }
+
+  .film-frame:nth-child(2) .frame-thumb {
+    height: 76px;
+  }
+
+  .film-frame:nth-child(3) .frame-thumb {
+    height: 92px;
+  }
+
+  .film-frame:nth-child(4) .frame-thumb {
+    height: 108px;
+  }
+
+  .frame-label {
+    font-size: 11px;
+  }
+
+  .film-chip {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  /* 桌面端悬停暂停滚动，方便看清内容 */
+  .film-marquee:hover .film-marquee-track {
+    animation-play-state: paused;
+  }
+
+  /* 对比图 */
+  .compare-handle {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    line-height: 28px;
+  }
+
+  .compare-tag {
+    bottom: 56px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  .compare-caption {
+    height: 40px;
+    font-size: 12px;
+    line-height: 40px;
+  }
+
+  /* 草稿库 */
+  .draft-title {
+    font-size: 17px;
+  }
+
+  .draft-subtitle {
+    font-size: 12px;
+  }
+
+  .draft-row {
+    margin-top: 10px;
+    padding: 14px 16px;
+    font-size: 14px;
+  }
+
+  .draft-status {
+    font-size: 12px;
+  }
 }
 </style>
