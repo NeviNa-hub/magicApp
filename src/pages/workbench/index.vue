@@ -404,8 +404,8 @@ page {
 .film-frames {
   display: flex;
   align-items: flex-end;
-  gap: 14rpx;
-  margin: 20rpx 0;
+  gap: 12rpx;
+  /* margin: 20rpx 0; */
 }
 
 /* 从左到右逐渐放大：basis 取 auto 保证最小宽度装得下标签，剩余空间按递增比例分配，
@@ -464,7 +464,7 @@ page {
 
 .film-frame:nth-child(4) .frame-thumb {
   height: 156rpx;
-  background-image: url("../../assets/theme/theme-videos-1.png");
+  background-image: url("../../assets/theme/theme-videos-4.png");
 }
 
 .frame-label {

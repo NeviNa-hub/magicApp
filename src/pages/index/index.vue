@@ -1,78 +1,101 @@
 <template>
   <view class="home-page">
-    <app-page-header title="文稿库" />
+    <app-page-header title="首页" />
 
     <scroll-view scroll-y :show-scrollbar="false" class="main-scroll">
       <view class="greeting-row">
-        <view>
-          <text class="greeting-label">·东方意象美学</text>
-          <text class="greeting-title">妙笔生花</text>
-          <text class="greeting-subtitle">以笔为引，以意生花 · 极简智能多模态创作</text>
+        <view class="greeting-left">
+          <text class="greeting-title">东方意象美学</text>
+          <view class="greeting-marquee">
+            <view class="marquee-track">
+              以笔为引，以意生花 · 极简智能多模态创作
+            </view>
+          </view>
         </view>
         <text class="weather">今日谷雨</text>
       </view>
 
       <view class="hero-card">
         <view class="hero-art">
-          <view class="mountain mountain-back"></view>
-          <view class="mountain mountain-mid"></view>
-          <view class="mountain mountain-front"></view>
+          <image
+            class="hero-image"
+            src="/static/home/home-1.png"
+            mode="aspectFill"
+          />
           <view class="hero-label">今日推荐 · 烟岚登翠</view>
-          <view class="hero-caption">青绿水墨江南 · 云峰藏雾</view>
-          <view class="hero-hint">提示词：水墨淋漓，宋式青绿设色，微风拂动湖面，...</view>
+          <view class="hero-caption">青绿水墨江南</view>
+          <view class="hero-hint">
+            提示词：水墨淋漓，宋式青绿设色，微风拂动湖面 ...
+          </view>
         </view>
         <view class="hero-footer">
           <view class="hero-meta">
-            <view class="meta-icon"></view>
+            <!-- <view class="meta-icon"></view> -->
             <view>
-              <text class="meta-title">国风效果大模型</text>
+              <text class="meta-title">国产大模型</text>
               <text class="meta-subtitle">已生成 1,280 次</text>
             </view>
           </view>
           <button class="try-button" @click="handleTryCreation">
-            同款创作 <text></text>
+            同款创作
           </button>
         </view>
       </view>
 
       <view class="section-heading">
-        <text>核心创想矩阵</text>
-        <text class="section-tag">灵感工坊</text>
-        <text class="section-page">01 <text class="muted">/ 03</text> ⇄</text>
+        <text>灵感工坊</text>
+        <text class="section-page"
+          >0{{ currentCreation + 1 }}
+          <text class="muted">/ 0{{ CREATION_COUNT }}</text> ⇄</text
+        >
       </view>
-      <scroll-view scroll-x class="creation-scroll" :show-scrollbar="false">
-        <view class="creation-card creation-card-main" @click="openWorkbench">
-          <view class="card-topline">
-            <text class="card-badge">墨韵境 · 01</text>
-            <text class="card-type">全自动引擎</text>
+      <swiper
+        class="creation-swiper"
+        :current="currentCreation"
+        @change="handleCreationChange"
+      >
+        <swiper-item>
+          <view class="creation-card creation-card-main" @click="openWorkbench">
+            <view class="card-topline">
+              <text class="card-badge">01 · 文字生图</text>
+              <text class="card-type">写意画境</text>
+            </view>
+            <text class="creation-title"
+              >千字绘图，万象由心 · 意境回流东方神韵</text
+            >
+            <view class="chips">
+              <text>宋式水墨</text>
+              <text>留白神韵</text>
+              <text>青绿工笔</text>
+            </view>
+            <view class="card-bottom">
+              <text> 多尺度画幅支持</text>
+              <text class="enter-link">灵感浮动 </text>
+            </view>
           </view>
-          <text class="creation-title">文字生图 · 写意画境</text>
-          <text class="creation-desc">千字绘图，万象由心 · 意境回流东方神韵</text>
-          <view class="chips">
-            <text>宋式水墨</text>
-            <text>留白神韵</text>
-            <text>青绿工笔</text>
+        </swiper-item>
+        <swiper-item>
+          <view
+            class="creation-card creation-card-side"
+            @click="openVideoCreation"
+          >
+            <view class="card-topline">
+              <text class="card-badge">02 · 视频创作</text>
+            </view>
+            <text class="creation-title">光影入笔，流动成诗</text>
+            <view class="chips">
+              <text>远景镜头</text>
+            </view>
           </view>
-          <view class="card-bottom">
-            <text> 多尺度画幅支持</text>
-            <text class="enter-link">灵感浮动 </text>
-          </view>
-        </view>
-        <view class="creation-card creation-card-side" @click="openVideoCreation">
-          <view class="card-topline">
-            <text class="card-badge">天青馆 · 02</text>
-          </view>
-          <text class="creation-title">视频创作</text>
-          <text class="creation-desc">光影入笔，流动成诗</text>
-          <view class="chips">
-            <text>远景镜头</text>
-          </view>
-        </view>
-      </scroll-view>
+        </swiper-item>
+      </swiper>
       <view class="pagination-dots">
-        <text class="active-dot"></text>
-        <text></text>
-        <text></text>
+        <text
+          v-for="index in CREATION_COUNT"
+          :key="index"
+          :class="{ 'active-dot': index - 1 === currentCreation }"
+          @click="selectCreation(index - 1)"
+        ></text>
       </view>
       <view class="quote">造法自然 · 意致千里</view>
     </scroll-view>
@@ -82,8 +105,13 @@
 </template>
 
 <script setup>
+import { ref } from "vue";
+
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
+
+const CREATION_COUNT = 2;
+const currentCreation = ref(0);
 
 // 开始同款创作并给出轻量反馈。
 const handleTryCreation = () => {
@@ -98,6 +126,28 @@ const openWorkbench = () => {
 // 打开视频创作的公共待开发页面。
 const openVideoCreation = () => {
   uni.navigateTo({ url: "/pages/under-development/index?title=视频创作" });
+};
+
+/**
+ * 记录灵感工坊当前切换到的卡片索引。
+ *
+ * @param {object} event swiper 切换事件
+ * @param {object} event.detail 切换详情
+ * @param {number} event.detail.current 切换后的卡片索引
+ * @returns {void}
+ */
+const handleCreationChange = (event) => {
+  currentCreation.value = event.detail.current;
+};
+
+/**
+ * 切换到指定索引的灵感工坊卡片。
+ *
+ * @param {number} index 目标卡片索引
+ * @returns {void}
+ */
+const selectCreation = (index) => {
+  currentCreation.value = index;
 };
 </script>
 
@@ -127,25 +177,58 @@ page {
   margin-bottom: 28rpx;
 }
 
-.greeting-label {
-  display: block;
-  color: #148d86;
-  font-size: 25rpx;
-  font-weight: 600;
+.greeting-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .greeting-title {
-  display: block;
-  margin-top: 14rpx;
+  color: #148d86;
+  display: inline-block;
   font-size: 28rpx;
-  font-weight: 700;
+  font-weight: 600;
+  animation: title-pulse 5s ease-in-out infinite;
 }
 
-.greeting-subtitle {
-  display: block;
-  margin-top: 8rpx;
+@keyframes title-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.greeting-marquee {
+  overflow: hidden;
+  width: 320rpx;
+  margin-left: 16rpx;
+}
+
+.marquee-track {
+  font-size: 16rpx;
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee-scroll 8s linear infinite;
+}
+
+/* .marquee-item {
+  padding-right: 60rpx;
   color: #566b70;
   font-size: 24rpx;
+} */
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 .weather {
@@ -162,10 +245,16 @@ page {
 }
 
 .hero-art {
-  height: 350rpx;
+  height: 300rpx;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(160deg, #d5e5e1, #9fbdb6 45%, #486c6e);
+}
+
+.hero-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .hero-art:after {
@@ -178,36 +267,6 @@ page {
     transparent 45%,
     rgba(20, 37, 44, 0.72)
   );
-}
-
-.mountain {
-  position: absolute;
-  bottom: 0;
-  border-radius: 50% 50% 0 0;
-  transform: rotate(45deg);
-  opacity: 0.7;
-}
-
-.mountain-back {
-  width: 360rpx;
-  height: 260rpx;
-  left: 8%;
-  background: #b4cdca;
-}
-
-.mountain-mid {
-  width: 400rpx;
-  height: 320rpx;
-  left: 34%;
-  background: #8badab;
-}
-
-.mountain-front {
-  width: 500rpx;
-  height: 230rpx;
-  left: 12%;
-  background: #527978;
-  opacity: 0.9;
 }
 
 .hero-label,
@@ -322,22 +381,17 @@ page {
   color: #afc5c5;
 }
 
-.creation-scroll {
-  white-space: nowrap;
-  width: calc(100vw - 36rpx);
-  margin-left: -36rpx;
-  padding-left: 36rpx;
+.creation-swiper {
+  height: 300rpx;
 }
 
 .creation-card {
-  display: inline-flex;
-  vertical-align: top;
+  display: flex;
   flex-direction: column;
   height: 300rpx;
   padding: 22rpx;
   box-sizing: border-box;
   border-radius: 28rpx;
-  white-space: normal;
 }
 
 .creation-card-main {
@@ -347,8 +401,7 @@ page {
 }
 
 .creation-card-side {
-  width: 250rpx;
-  margin-left: 18rpx;
+  width: calc(100vw - 100rpx);
   border: 1rpx solid #e0edf2;
   background: #fff;
 }
@@ -368,16 +421,17 @@ page {
 }
 
 .creation-title {
+  color: #617a7e;
   margin-top: 18rpx;
   font-size: 28rpx;
   font-weight: 700;
 }
 
-.creation-desc {
+/* .creation-desc {
   margin-top: 9rpx;
-  color: #617a7e;
+  
   font-size: 21rpx;
-}
+} */
 
 .chips {
   display: flex;
