@@ -1,27 +1,22 @@
 <template>
   <view class="home-page">
-    <app-page-header title="首页" />
+    <app-page-header title="妙笔生花" />
 
     <scroll-view scroll-y :show-scrollbar="false" class="main-scroll">
+      <!-- 欢迎语 -->
       <view class="greeting-row">
         <view class="greeting-left">
           <text class="greeting-title">东方意象美学</text>
           <view class="greeting-marquee">
-            <view class="marquee-track">
-              以笔为引，以意生花 · 极简智能多模态创作
-            </view>
+            <view class="marquee-track"> 以笔为引，以意生花 · 极简智能多模态创作 </view>
           </view>
         </view>
         <text class="weather">今日谷雨</text>
       </view>
-
+      <!-- 推荐创作 -->
       <view class="hero-card">
         <view class="hero-art">
-          <image
-            class="hero-image"
-            src="/static/home/home-1.png"
-            mode="aspectFill"
-          />
+          <image class="hero-image" src="/static/home/home-1.png" mode="aspectFill" />
           <view class="hero-label">今日推荐 · 烟岚登翠</view>
           <view class="hero-caption">青绿水墨江南</view>
           <view class="hero-hint">
@@ -30,65 +25,56 @@
         </view>
         <view class="hero-footer">
           <view class="hero-meta">
-            <!-- <view class="meta-icon"></view> -->
-            <view>
-              <text class="meta-title">国产大模型</text>
-              <text class="meta-subtitle">已生成 1,280 次</text>
-            </view>
+            <text class="meta-title">国产大模型</text>
+            <text class="meta-subtitle">已生成 1,280 次</text>
           </view>
-          <button class="try-button" @click="handleTryCreation">
-            同款创作
-          </button>
+          <button class="try-button" @click="handleTryCreation">同款创作</button>
         </view>
       </view>
 
+      <!-- 灵感工坊，展示推荐的创作模式 -->
       <view class="section-heading">
-        <text>灵感工坊</text>
-        <text class="section-page"
-          >0{{ currentCreation + 1 }}
-          <text class="muted">/ 0{{ CREATION_COUNT }}</text> ⇄</text
-        >
+        <text class="section-title">灵感工坊</text>
+        <text class="section-page">
+          {{ currentCreation + 1 }}
+          <text class="muted">/ {{ CREATION_COUNT }}</text>
+        </text>
       </view>
-      <swiper
-        class="creation-swiper"
-        :current="currentCreation"
-        @change="handleCreationChange"
+      <!-- 创作模式卡片 -->
+      <view
+        class="carousel-stage"
+        @touchstart="handleTouchStart"
+        @touchend="handleTouchEnd"
       >
-        <swiper-item>
-          <view class="creation-card creation-card-main" @click="openWorkbench">
-            <view class="card-topline">
-              <text class="card-badge">01 · 文字生图</text>
-              <text class="card-type">写意画境</text>
-            </view>
-            <text class="creation-title"
-              >千字绘图，万象由心 · 意境回流东方神韵</text
-            >
-            <view class="chips">
-              <text>宋式水墨</text>
-              <text>留白神韵</text>
-              <text>青绿工笔</text>
-            </view>
-            <view class="card-bottom">
-              <text> 多尺度画幅支持</text>
-              <text class="enter-link">灵感浮动 </text>
-            </view>
-          </view>
-        </swiper-item>
-        <swiper-item>
+        <view class="carousel-container">
           <view
-            class="creation-card creation-card-side"
-            @click="openVideoCreation"
+            v-for="(creation, index) in creations"
+            :key="creation.title"
+            class="creation-card"
+            :class="[getCardPosition(index), `creation-card-${index + 1}`]"
+            @click="openCreation(creation.url)"
           >
-            <view class="card-topline">
-              <text class="card-badge">02 · 视频创作</text>
+            <view>
+              <text class="card-label">{{ creation.eyebrow }}</text>
+              <text class="creation-title">{{ creation.title }}</text>
+              <view class="mock-input">
+                <text class="input-prefix">{{ creation.inputLabel }}</text>
+                <text class="input-value">{{ creation.inputValue }}</text>
+                <text class="input-icon">{{ creation.icon }}</text>
+              </view>
             </view>
-            <text class="creation-title">光影入笔，流动成诗</text>
-            <view class="chips">
-              <text>远景镜头</text>
+
+            <!-- 创作模式卡片底部 -->
+            <view class="card-bottom">
+              <text class="footer-note">{{ creation.note }}</text>
+              <view class="action-button">
+                <text>{{ creation.action }}</text>
+                <!-- <text class="action-arrow">›</text> -->
+              </view>
             </view>
           </view>
-        </swiper-item>
-      </swiper>
+        </view>
+      </view>
       <view class="pagination-dots">
         <text
           v-for="index in CREATION_COUNT"
@@ -110,34 +96,55 @@ import { ref } from "vue";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
 
-const CREATION_COUNT = 2;
+const creations = [
+  {
+    // eyebrow: "IMAGE INK",
+    title: "文字生图",
+    inputLabel: "意境：",
+    inputValue: "宋式青绿水墨...",
+    icon: "✦",
+    note: "字句勾勒意境",
+    action: "去探索",
+    url: "/pages/image-creation/index",
+  },
+  {
+    // eyebrow: "MOTION INK",
+    title: "生成视频",
+    inputLabel: "镜头：",
+    inputValue: "微风荡起波澜...",
+    icon: "▣",
+    note: "融汇静止为流动",
+    action: "去创作",
+    url: "/pages/under-development/index?title=视频创作",
+  },
+  {
+    // eyebrow: "IMAGE REFINE",
+    title: "图片优化",
+    inputLabel: "优化：",
+    inputValue: "超高清晰画质",
+    icon: "✨",
+    note: "一键唤醒纤毫纹理",
+    action: "还原",
+    url: "/pages/image-optimization/index",
+  },
+];
+const CREATION_COUNT = creations.length;
 const currentCreation = ref(0);
+const touchStartX = ref(0);
 
 // 开始同款创作并给出轻量反馈。
 const handleTryCreation = () => {
   uni.navigateTo({ url: "/pages/image-creation/index" });
 };
 
-// 进入独立创作台页面。
-const openWorkbench = () => {
-  uni.navigateTo({ url: "/pages/workbench/index" });
-};
-
-// 打开视频创作的公共待开发页面。
-const openVideoCreation = () => {
-  uni.navigateTo({ url: "/pages/under-development/index?title=视频创作" });
-};
-
 /**
- * 记录灵感工坊当前切换到的卡片索引。
+ * 打开灵感工坊卡片对应的创作页面。
  *
- * @param {object} event swiper 切换事件
- * @param {object} event.detail 切换详情
- * @param {number} event.detail.current 切换后的卡片索引
+ * @param {string} url 创作页面地址
  * @returns {void}
  */
-const handleCreationChange = (event) => {
-  currentCreation.value = event.detail.current;
+const openCreation = (url) => {
+  uni.navigateTo({ url });
 };
 
 /**
@@ -148,6 +155,48 @@ const handleCreationChange = (event) => {
  */
 const selectCreation = (index) => {
   currentCreation.value = index;
+};
+
+/**
+ * 获取卡片在轮播舞台中的位置类名。
+ *
+ * @param {number} index 卡片索引
+ * @returns {string} 卡片位置类名
+ */
+const getCardPosition = (index) => {
+  if (index === currentCreation.value) {
+    return "active";
+  }
+
+  return index === (currentCreation.value + 1) % CREATION_COUNT ? "right" : "left";
+};
+
+/**
+ * 记录滑动开始时的横向坐标。
+ *
+ * @param {object} event 触摸开始事件
+ * @returns {void}
+ */
+const handleTouchStart = (event) => {
+  touchStartX.value = event.changedTouches[0].clientX;
+};
+
+/**
+ * 根据横向滑动距离切换灵感工坊卡片。
+ *
+ * @param {object} event 触摸结束事件
+ * @returns {void}
+ */
+const handleTouchEnd = (event) => {
+  const distance = event.changedTouches[0].clientX - touchStartX.value;
+
+  if (distance > 50) {
+    selectCreation((currentCreation.value - 1 + CREATION_COUNT) % CREATION_COUNT);
+  }
+
+  if (distance < -50) {
+    selectCreation((currentCreation.value + 1) % CREATION_COUNT);
+  }
 };
 </script>
 
@@ -160,21 +209,21 @@ page {
 .home-page {
   height: 100vh;
   overflow: hidden;
-  background: #f6fafb;
-  color: #17343b;
+  background: #f8f8f4;
+  color: #2d3532;
 }
 
 .main-scroll {
   height: calc(100vh - 210rpx);
   overflow: hidden;
-  padding: 34rpx 36rpx 0;
+  padding: 14rpx 36rpx 0;
   box-sizing: border-box;
 }
 
 .greeting-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 28rpx;
+  margin-bottom: 14rpx;
 }
 
 .greeting-left {
@@ -184,7 +233,7 @@ page {
 }
 
 .greeting-title {
-  color: #148d86;
+  color: #5f8575;
   display: inline-block;
   font-size: 28rpx;
   font-weight: 600;
@@ -233,21 +282,25 @@ page {
 
 .weather {
   font-size: 23rpx;
-  color: #273941;
+  color: #75827e;
 }
 
 .hero-card {
+  padding: 30rpx 30rpx;
   overflow: hidden;
   border: 1rpx solid #dbe8e8;
-  border-radius: 26rpx;
+  border-color: rgba(0, 0, 0, 0.02);
+  border-radius: 34rpx;
   background: white;
-  box-shadow: 0 10rpx 25rpx rgba(37, 82, 83, 0.06);
+  box-shadow: 0 16rpx 48rpx rgba(95, 133, 117, 0.08);
 }
 
 .hero-art {
-  height: 300rpx;
+  /* padding: 20rpx; */
+  height: 280rpx;
   position: relative;
   overflow: hidden;
+  border-radius: 80rpx 30rpx 100rpx 30rpx;
 }
 
 .hero-image {
@@ -265,7 +318,7 @@ page {
     180deg,
     rgba(255, 255, 255, 0.28),
     transparent 45%,
-    rgba(20, 37, 44, 0.72)
+    rgba(45, 53, 50, 0.58)
   );
 }
 
@@ -279,28 +332,30 @@ page {
 }
 
 .hero-label {
-  top: 26rpx;
+  top: 18rpx;
   padding: 10rpx 18rpx;
   border-radius: 30rpx;
   background: rgba(255, 255, 255, 0.84);
-  color: #687d7d;
+  color: #5f8575;
   font-size: 22rpx;
 }
 
 .hero-caption {
-  bottom: 76rpx;
-  font-size: 28rpx;
+  bottom: 58rpx;
+  font-size: 25rpx;
   font-weight: 700;
 }
 
 .hero-hint {
-  bottom: 28rpx;
-  font-size: 22rpx;
+  bottom: 20rpx;
+  font-size: 19rpx;
   opacity: 0.86;
 }
 
 .hero-footer {
-  padding: 22rpx 28rpx;
+  /* padding: 16rpx 24rpx 18rpx; */
+  /* background: red; */
+  padding-top: 30rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -330,14 +385,15 @@ page {
 }
 
 .meta-title {
-  font-size: 25rpx;
+  color: #2d3532;
+  font-size: 30rpx;
   font-weight: 700;
 }
 
 .meta-subtitle {
-  margin-top: 5rpx;
-  color: #a0b4b5;
-  font-size: 19rpx;
+  margin-left: 10rpx;
+  color: #75827e;
+  font-size: 5rpx;
 }
 
 .try-button {
@@ -345,7 +401,7 @@ page {
   padding: 0 22rpx;
   height: 56rpx;
   border-radius: 30rpx;
-  background: #118d83;
+  background: #5f8575;
   color: white;
   font-size: 22rpx;
 }
@@ -357,8 +413,9 @@ page {
 .section-heading {
   display: flex;
   align-items: center;
-  margin: 38rpx 4rpx 22rpx;
-  font-size: 27rpx;
+  margin: 20rpx 4rpx 4rpx;
+  color: #5f8575;
+  font-size: 28rpx;
   font-weight: 700;
 }
 
@@ -373,7 +430,7 @@ page {
 
 .section-page {
   margin-left: auto;
-  color: #148f87;
+  color: #5f8575;
   font-size: 20rpx;
 }
 
@@ -381,86 +438,151 @@ page {
   color: #afc5c5;
 }
 
-.creation-swiper {
-  height: 300rpx;
+.carousel-stage {
+  position: relative;
+  margin: 30rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1200px;
+}
+
+.carousel-container {
+  position: relative;
+  width: 480rpx;
+  height: 400rpx;
+  transform-style: preserve-3d;
 }
 
 .creation-card {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  height: 300rpx;
-  padding: 22rpx;
+  justify-content: space-between;
+  padding: 30rpx;
   box-sizing: border-box;
-  border-radius: 28rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.9);
+  border-radius: 48rpx;
+  transition: transform 0.6s ease, opacity 0.6s ease, filter 0.6s ease;
+  pointer-events: none;
 }
 
-.creation-card-main {
-  width: calc(100vw - 100rpx);
-  border: 1rpx solid #ccefe9;
-  background: linear-gradient(135deg, #fff, #eafbf8);
+.creation-card-1 {
+  background: linear-gradient(135deg, #ffffff 30%, #e8f1ec 100%);
 }
 
-.creation-card-side {
-  width: calc(100vw - 100rpx);
-  border: 1rpx solid #e0edf2;
-  background: #fff;
+.creation-card-2 {
+  background: linear-gradient(135deg, #ffffff 30%, #faf0e4 100%);
 }
 
-.card-badge {
-  padding: 7rpx 13rpx;
-  border-radius: 20rpx;
-  color: white;
-  background: #128e84;
-  font-size: 19rpx;
+.creation-card-3 {
+  background: linear-gradient(135deg, #ffffff 30%, #ece8f1 100%);
 }
 
-.card-type {
-  margin-left: 12rpx;
-  color: #169a91;
-  font-size: 20rpx;
+.creation-card.active {
+  z-index: 3;
+  transform: translate3d(0, 0, 0) scale(1);
+  opacity: 1;
+  filter: blur(0);
+  pointer-events: auto;
+  box-shadow: 0 28rpx 60rpx rgba(95, 133, 117, 0.15);
+}
+
+.creation-card.left {
+  z-index: 1;
+  transform: translate3d(-150rpx, 0, -120rpx) scale(0.85) rotateY(40deg);
+  opacity: 0.55;
+  filter: blur(1rpx);
+}
+
+.creation-card.right {
+  z-index: 1;
+  transform: translate3d(150rpx, 0, -120rpx) scale(0.85) rotateY(-40deg);
+  opacity: 0.55;
+  filter: blur(1rpx);
 }
 
 .creation-title {
-  color: #617a7e;
-  margin-top: 18rpx;
+  display: block;
+  margin-top: 8rpx;
+  color: #202022;
   font-size: 28rpx;
   font-weight: 700;
 }
 
-/* .creation-desc {
-  margin-top: 9rpx;
-  
-  font-size: 21rpx;
-} */
-
-.chips {
-  display: flex;
-  margin-top: 20rpx;
-  gap: 10rpx;
+.card-label {
+  display: block;
+  color: rgba(32, 32, 34, 0.38);
+  font-size: 18rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
 }
 
-.chips text {
-  padding: 7rpx 12rpx;
-  border-radius: 8rpx;
-  background: #d8f7f2;
-  color: #148e86;
-  font-size: 18rpx;
+.mock-input {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22rpx;
+  padding: 18rpx 20rpx;
+  border: 1rpx solid rgba(32, 32, 34, 0.06);
+  border-top: 1rpx solid rgba(212, 189, 150, 0.3);
+  border-bottom: 1rpx solid rgba(212, 189, 150, 0.3);
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
+  background: #faf9f5;
+  box-shadow: none;
+  font-size: 20rpx;
+}
+
+.input-prefix {
+  flex-shrink: 0;
+  color: #9b999f;
+}
+
+.input-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: #2d2b30;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.input-icon {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  color: #c84b31;
 }
 
 .card-bottom {
-  margin-top: auto;
+  padding-top: 16rpx;
+  border-top: 1rpx solid rgba(32, 32, 34, 0.07);
   justify-content: space-between;
-  color: #91aaac;
   font-size: 19rpx;
 }
 
-.enter-link {
-  color: #157e77;
+.footer-note {
+  color: #aaa7ae;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  border-radius: 999rpx;
+  width: 120rpx;
+  height: 70rpx;
+  justify-content: center;
+  background: #117204;
+  color: #fff;
+  font-size: 16rpx;
+  font-weight: 700;
 }
 
 .pagination-dots {
   text-align: center;
-  padding: 28rpx 0;
+  padding: 8rpx 0 18rpx;
 }
 
 .pagination-dots text {
@@ -469,19 +591,19 @@ page {
   height: 10rpx;
   margin: 0 5rpx;
   border-radius: 50%;
-  background: #c8dce0;
+  background: #d1d5d4;
 }
 
 .pagination-dots .active-dot {
   width: 40rpx;
   border-radius: 8rpx;
-  background: #138d84;
+  background: #5f8575;
 }
 
 .quote {
   padding-bottom: 25rpx;
   text-align: center;
-  color: #a0b2b5;
+  color: #75827e;
   font-size: 20rpx;
 }
 </style>

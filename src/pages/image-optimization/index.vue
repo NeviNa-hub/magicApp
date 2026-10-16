@@ -9,14 +9,28 @@
           {{ selectedImage ? "更换图片" : "导入图片" }}
         </button>
       </view>
-      <view class="preview" :class="{ empty: !selectedImage }" @click="chooseImage">
-        <image v-if="selectedImage" :src="selectedImage.path" mode="aspectFit" />
-        <text v-else class="empty-tip"> ＋<small>从相册选择或拍摄图片</small> </text>
+      <view
+        class="preview"
+        :class="{ empty: !selectedImage }"
+        @click="chooseImage"
+      >
+        <image
+          v-if="selectedImage"
+          :src="selectedImage.path"
+          mode="aspectFit"
+        />
+        <text v-else class="empty-tip">
+          ＋<small>从相册选择或拍摄图片</small>
+        </text>
         <text v-if="selectedImage" class="cover"> 已选封面</text>
-        <text v-if="selectedImage" class="ready"> 原图解析就绪 · 4K重绘待命</text>
+        <text v-if="selectedImage" class="ready">
+          原图解析就绪 · 4K重绘待命</text
+        >
         <text v-if="selectedImage" class="zoom">⌕</text>
       </view>
-      <view class="hint" @click="chooseImage">　点击重新从系统相册导入或拍摄</view>
+      <view class="hint" @click="chooseImage"
+        >　点击重新从系统相册导入或拍摄</view
+      >
       <view class="heading">优化方向 <small>单选</small></view>
       <view class="directions">
         <view
@@ -31,7 +45,9 @@
           <small>{{ item.description }}</small>
         </view>
       </view>
-      <view class="heading">重绘强度 <small class="accent">均衡重构（推荐）</small></view>
+      <view class="heading"
+        >重绘强度 <small class="accent">均衡重构（推荐）</small></view
+      >
       <view class="intensity">
         <text
           v-for="item in intensities"
@@ -53,10 +69,16 @@
           @change="keepDetail = $event.detail.value"
         />
       </view>
-      <view class="cost"> 预计消耗 3 灵感点 <small>账户结余 800 点</small></view>
     </scroll-view>
     <view class="actions">
-      <button :disabled="!selectedImage || isSubmitting" @click="startOptimization">
+      <view class="cost">
+        <text>预计消耗 {{ cost }} 灵感点</text>
+        <text>账户结余 800 点</text>
+      </view>
+      <button
+        :disabled="!selectedImage || isSubmitting"
+        @click="startOptimization"
+      >
         开始淬炼重绘（耗{{ cost }}点）
       </button>
       <text>云端蒸馏级处理 · 支持高清直存至作品库</text>
@@ -117,7 +139,10 @@ const startOptimization = async () => {
       keep_detail: keepDetail.value,
     });
     if (response.code !== 0) {
-      uni.showToast({ title: response.message || "创建任务失败", icon: "none" });
+      uni.showToast({
+        title: response.message || "创建任务失败",
+        icon: "none",
+      });
       return;
     }
 
@@ -155,7 +180,7 @@ page {
 
 .content {
   height: calc(100vh - 220rpx);
-  padding: 34rpx 40rpx 180rpx;
+  padding: 34rpx 40rpx 220rpx;
   box-sizing: border-box;
 }
 
@@ -371,13 +396,12 @@ page {
 }
 
 .cost {
-  margin: 28rpx 6rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 6rpx 16rpx;
   color: #748589;
   font-size: 17rpx;
-}
-
-.cost small {
-  float: right;
 }
 
 .actions {

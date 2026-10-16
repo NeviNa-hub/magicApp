@@ -2,9 +2,8 @@
   <view class="library-page">
     <app-page-header title="作品库" />
     <scroll-view scroll-y :show-scrollbar="false" class="content">
-      <view class="title-row">
-        <text class="page-title">作品库</text>
-        <text class="summary"> {{ summary }}</text>
+      <view class="summary-row">
+        <text class="summary">{{ summary }}</text>
       </view>
       <view class="tabs">
         <text
@@ -103,14 +102,10 @@ page {
   box-sizing: border-box;
 }
 
-.title-row {
+.summary-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.page-title {
-  font: 700 44rpx serif;
 }
 
 .summary {
