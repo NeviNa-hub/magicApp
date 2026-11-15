@@ -62,6 +62,12 @@
       }
     },
     {
+      "path": "pages/work-detail/index",
+      "style": {
+        "navigationBarTitleText": "作品详情"
+      }
+    },
+    {
       "path": "pages/library/index",
       "style": {
         "navigationBarTitleText": "作品库"

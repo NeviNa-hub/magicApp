@@ -218,19 +218,22 @@ const loadMore = () => {
   loadLibraryData();
 };
 
-// 各类型任务对应的详情页入口，任务标识由作品库列表接口返回
-const DETAIL_ROUTES = {
-  文字生图: ({ taskId, title }) =>
-    `/pages/image-generation/index?mode=creation&taskId=${encodeURIComponent(
-      taskId,
-    )}&title=${encodeURIComponent(title)}`,
-  图片优化: ({ taskId, title }) =>
-    `/pages/image-generation/index?mode=optimization&taskId=${encodeURIComponent(
-      taskId,
-    )}&title=${encodeURIComponent(title)}`,
-  视频创作: ({ taskId }) =>
-    `/pages/video-render/index?taskId=${encodeURIComponent(taskId)}`,
+// 作品库创作类型与任务查询类型的对应关系，详情页统一按任务标识查询进度与结果
+const WORK_TYPE_KEYS = {
+  文字生图: "image",
+  图片优化: "optimization",
+  视频创作: "video",
 };
+
+/**
+ * 构建作品详情页地址。
+ * @param {Object} work 作品库记录。
+ * @returns {string} 详情页地址。
+ */
+const buildWorkDetailUrl = (work) =>
+  `/pages/work-detail/index?type=${WORK_TYPE_KEYS[work.typeName]}&taskId=${encodeURIComponent(
+    work.taskId,
+  )}&title=${encodeURIComponent(work.title)}`;
 
 /**
  * 打开作品详情页（创作中查看进度、已完成查看结果），没有详情入口时预览图片。
@@ -238,10 +241,8 @@ const DETAIL_ROUTES = {
  * @returns {void}
  */
 const openWork = (work) => {
-  const buildDetailUrl = DETAIL_ROUTES[work.typeName];
-
-  if (work.taskId && buildDetailUrl) {
-    uni.navigateTo({ url: buildDetailUrl(work) });
+  if (work.taskId && WORK_TYPE_KEYS[work.typeName]) {
+    uni.navigateTo({ url: buildWorkDetailUrl(work) });
     return;
   }
 
@@ -486,13 +487,13 @@ onShow(() => {
 /* #endif */
 
 /* ============================================================
- * 桌面 H5 适配：1200px 以上作品列表三列排布
+ * 桌面 H5 适配：1200px 以上作品列表两列排布，单卡横向占一半宽度
  * 必须排在基础样式之后，否则“详情”文字会被基础样式的 display: none 覆盖
  * ============================================================ */
 @media (min-width: $breakpoint-desktop) {
   .work-list {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .work-actions {
