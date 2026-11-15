@@ -1,76 +1,71 @@
 <template>
-  <view class="page">
-    <app-page-header title="图片优化" />
-    <view class="scroll-window">
-      <scroll-view scroll-y :show-scrollbar="false" class="content">
-        <view class="creation-body">
-          <view class="config-card">
-            <view class="config-title"><em>壹 ·</em> 导入原图</view>
-            <view class="file">
-              <text v-if="selectedImage">{{ selectedImage.name }}</text>
-              <text v-else>请先导入需要优化的图片</text>
-              <button @click="chooseImage">
-                <!-- #ifdef H5 -->
-                <el-icon class="file-icon"><Upload /></el-icon>
-                <!-- #endif -->
-                {{
-                  isUploading
-                    ? "正在上传…"
-                    : selectedImage
-                      ? "更换图片"
-                      : "导入图片"
-                }}
-              </button>
-            </view>
-            <view
-              class="preview"
-              :class="{ empty: !selectedImage }"
-              @click="chooseImage"
-            >
-              <app-image
-                v-if="selectedImage"
-                class="preview-media"
-                :src="selectedImage.url || selectedImage.path"
-                mode="aspectFit"
-              />
-              <view v-else class="empty-tip">
-                <!-- #ifdef H5 -->
-                <el-icon class="empty-icon"><Plus /></el-icon>
-                <!-- #endif -->
-                <text>从相册选择或拍摄图片</text>
-              </view>
-              <text v-if="selectedImage" class="cover">已选封面</text>
-              <view v-if="selectedImage" class="zoom">
-                <!-- #ifdef H5 -->
-                <el-icon><ZoomIn /></el-icon>
-                <!-- #endif -->
-              </view>
-            </view>
-            <text class="hint">点击预览可从系统相册重新导入或拍摄</text>
+  <creation-page title="图片优化">
+    <view class="flow-body">
+      <app-config-card index="壹" title="导入原图">
+        <view class="file">
+          <text v-if="selectedImage">{{ selectedImage.name }}</text>
+          <text v-else>请先导入需要优化的图片</text>
+          <button @click="chooseImage">
+            <!-- #ifdef H5 -->
+            <el-icon class="file-icon"><Upload /></el-icon>
+            <!-- #endif -->
+            {{
+              isUploading
+                ? "正在上传…"
+                : selectedImage
+                  ? "更换图片"
+                  : "导入图片"
+            }}
+          </button>
+        </view>
+        <view
+          class="preview"
+          :class="{ empty: !selectedImage }"
+          @click="chooseImage"
+        >
+          <app-image
+            v-if="selectedImage"
+            class="preview-media"
+            :src="selectedImage.url || selectedImage.path"
+            mode="aspectFit"
+          />
+          <view v-else class="empty-tip">
+            <!-- #ifdef H5 -->
+            <el-icon class="empty-icon"><Plus /></el-icon>
+            <!-- #endif -->
+            <text>从相册选择或拍摄图片</text>
           </view>
-
-          <view class="config-card">
-            <view class="config-title prompt-head">
-              <view><em>贰 ·</em> 优化提示词</view>
-              <text>{{ prompt.length }} / {{ promptLimit }} 字</text>
-            </view>
-            <textarea
-              v-model="prompt"
-              :maxlength="promptLimit"
-              class="prompt-input"
-              placeholder="描述希望优化的效果，例如：提升清晰度，修复噪点，保留原有构图"
-            />
-            <text class="fixed-tip"
-              >提交扣除 1 积分，生成失败暂不退还；结果链接约 1
-              小时后失效。</text
-            >
+          <text v-if="selectedImage" class="cover">已选封面</text>
+          <view v-if="selectedImage" class="zoom">
+            <!-- #ifdef H5 -->
+            <el-icon><ZoomIn /></el-icon>
+            <!-- #endif -->
           </view>
         </view>
-      </scroll-view>
+        <text class="hint">点击预览可从系统相册重新导入或拍摄</text>
+      </app-config-card>
+
+      <app-config-card index="贰" title="优化提示词">
+        <template #extra>
+          <text class="prompt-count">
+            {{ prompt.length }} / {{ promptLimit }} 字
+          </text>
+        </template>
+        <textarea
+          v-model="prompt"
+          :maxlength="promptLimit"
+          class="prompt-input"
+          placeholder="描述希望优化的效果，例如：提升清晰度，修复噪点，保留原有构图"
+        />
+        <text class="fixed-tip">{{ costNote }}</text>
+      </app-config-card>
     </view>
-    <view class="actions">
-      <button
-        :disabled="!selectedImage || isSubmitting || isUploading"
+
+    <template #footer>
+      <app-flow-button
+        block
+        :disabled="!selectedImage || isUploading"
+        :loading="isSubmitting"
         @click="startOptimization"
       >
         <!-- #ifdef H5 -->
@@ -79,21 +74,27 @@
         {{
           isSubmitting ? "正在提交，请稍候…" : `开始淬炼重绘（耗${costText}点）`
         }}
-      </button>
-    </view>
-    <generation-dialog
-      v-if="isProgressVisible"
-      type="optimization"
-      :status="taskStatus"
-      :progress="taskProgress"
-      :progress-label="taskStageLabel"
-      :note="taskNote"
-      :result-url="taskResultUrl"
-      @back="goWorkbench"
-      @library="goLibrary"
-    />
-    <app-bottom-nav active="creation" desktop-only />
-  </view>
+      </app-flow-button>
+    </template>
+
+    <template #overlay>
+      <generation-dialog
+        v-if="isProgressVisible"
+        type="optimization"
+        :status="taskStatus"
+        :progress="taskProgress"
+        :progress-label="taskStageLabel"
+        :note="taskNote"
+        :result-url="taskResultUrl"
+        :canceling="isCanceling"
+        :retrying="isRetrying"
+        @cancel="cancelTask"
+        @retry="retryTask"
+        @back="goWorkbench"
+        @library="goLibrary"
+      />
+    </template>
+  </creation-page>
 </template>
 
 <script setup>
@@ -105,19 +106,27 @@ import { MagicStick, Plus, Upload, ZoomIn } from "@element-plus/icons-vue";
 
 import { USE_MOCK } from "@/apis/config";
 import { TASK_STATUS } from "@/apis/constants";
-import { uploadImage } from "@/apis/upload";
 import { getImageOptimizationTaskStatus } from "@/apis/image-optimization";
-import AppBottomNav from "@/components/AppBottomNav/index.vue";
+import { uploadImage } from "@/apis/upload";
+import AppConfigCard from "@/components/AppConfigCard/index.vue";
+import AppFlowButton from "@/components/AppFlowButton/index.vue";
 import AppImage from "@/components/AppImage/index.vue";
-import AppPageHeader from "@/components/AppPageHeader/index.vue";
+import CreationPage from "@/components/CreationPage/index.vue";
 import GenerationDialog from "@/components/GenerationDialog/index.vue";
+import useCreationQuote from "@/hooks/useCreationQuote";
+import useTaskActions from "@/hooks/useTaskActions";
 import useTaskPolling from "@/hooks/useTaskPolling";
 import { loadPointsBalance } from "@/stores";
 import { chooseSingleImage } from "@/utils/image-picker";
 import { submitImageOptimization } from "@/utils/image-optimization";
 import { getErrorMessage, isApiError } from "@/utils/request";
+import {
+  buildFailureNote,
+  getTaskRefundPoints,
+  getTaskRetryCost,
+} from "@/utils/task-refund";
 
-const cost = 1;
+const DEFAULT_OPTIMIZATION_COST = 1;
 const promptLimit = 200;
 const progressNote = "已投入云端淬炼池，离开页面不影响任务进度。";
 const prompt = ref("");
@@ -130,8 +139,24 @@ const taskProgress = ref(0);
 const taskStatus = ref(TASK_STATUS.PENDING);
 const taskResultUrl = ref("");
 const taskNote = ref(progressNote);
+const taskRetryCost = ref(0);
 
-const costText = computed(() => cost);
+const { quote: costQuote } = useCreationQuote({
+  getParams: () => ({
+    task_type: "optimization",
+    prompt: prompt.value.trim(),
+  }),
+});
+
+const costText = computed(
+  () => costQuote.value?.cost_points ?? DEFAULT_OPTIMIZATION_COST,
+);
+const costNote = computed(() => {
+  const tokens = costQuote.value?.total_tokens;
+  const tokenText = tokens ? `（约 ${tokens} tokens）` : "";
+
+  return `按提示词实时计价${tokenText}，提交扣除 ${costText.value} 积分，模型未产出结果时自动退回；结果链接约 1 小时后失效。`;
+});
 
 const taskStageLabel = computed(() => {
   if (taskStatus.value === TASK_STATUS.COMPLETED) {
@@ -142,15 +167,20 @@ const taskStageLabel = computed(() => {
     return "生成失败";
   }
 
+  if (taskStatus.value === TASK_STATUS.CANCELED) {
+    return "已取消创作";
+  }
+
   return "云端淬炼中";
 });
 
-const { start: startPolling } = useTaskPolling({
+const { start: startPolling, stop: stopPolling } = useTaskPolling({
   fetchTask: () => getImageOptimizationTaskStatus({ taskId: taskId.value }),
   interval: 3000,
   maxAttempts: 60,
   isCompleted: (data) => data.status === TASK_STATUS.COMPLETED,
   isFailed: (data) => data.status === TASK_STATUS.FAILED,
+  isCanceled: (data) => data.status === TASK_STATUS.CANCELED,
   onProgress: (data) => {
     taskStatus.value = data.status || TASK_STATUS.PROCESSING;
     taskProgress.value = Number(data.progress) || 0;
@@ -165,17 +195,54 @@ const { start: startPolling } = useTaskPolling({
     taskResultUrl.value = data.result_urls?.[0] || "";
     taskNote.value = "任务已完成，可前往作品库查看。";
   },
-  onFailed: (error) => {
+  onFailed: (error, data) => {
     const isRequestError = isApiError(error);
 
     taskStatus.value = TASK_STATUS.FAILED;
+    taskRetryCost.value = getTaskRetryCost(data);
     taskNote.value = isRequestError
       ? "任务状态查询失败，请稍后在作品库确认结果。"
-      : getErrorMessage(error, "任务进度获取失败，请稍后重试");
+      : buildFailureNote(
+          data,
+          getErrorMessage(error, "任务进度获取失败，请稍后重试"),
+        );
 
     if (!isRequestError) {
-      uni.showToast({ title: taskNote.value, icon: "none" });
+      uni.showToast({
+        title: data?.error_message || taskNote.value,
+        icon: "none",
+      });
     }
+  },
+  onCanceled: (data) => applyCanceledState(data),
+});
+
+// 任务取消后停止轮询，弹窗切换为已取消状态
+const applyCanceledState = (data = {}) => {
+  stopPolling();
+  taskStatus.value = TASK_STATUS.CANCELED;
+  taskResultUrl.value = "";
+  taskRetryCost.value = 0;
+
+  const refundPoints = getTaskRefundPoints(data);
+
+  taskNote.value =
+    refundPoints > 0
+      ? `创作已取消，本次消耗的 ${refundPoints} 积分已退回。`
+      : "创作已取消。";
+};
+
+const { cancelTask, retryTask, isCanceling, isRetrying } = useTaskActions({
+  getTaskId: () => taskId.value,
+  getRetryCost: () => taskRetryCost.value,
+  onCanceled: (data) => applyCanceledState(data),
+  onRetried: () => {
+    taskStatus.value = TASK_STATUS.PENDING;
+    taskProgress.value = 0;
+    taskResultUrl.value = "";
+    taskNote.value = progressNote;
+    taskRetryCost.value = 0;
+    startPolling();
   },
 });
 
@@ -267,101 +334,8 @@ const goLibrary = () => {
 </script>
 
 <style scoped lang="scss">
-.page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-  /* 为固定底栏预留高度，避免滚动窗下缘被底栏遮挡 */
-  padding-bottom: calc(132rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(132rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-  color: $color-ink;
-}
-
-.app-page-header {
-  flex: none;
-}
-
-/* 滚动窗：占据页头与底栏之间的全部剩余高度，边缘渐隐弱化切割感 */
-.scroll-window {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-
-  &::before,
-  &::after {
-    content: "";
-    position: absolute;
-    right: 0;
-    left: 0;
-    z-index: 2;
-    height: 28rpx;
-    pointer-events: none;
-  }
-
-  &::before {
-    top: 0;
-    background: linear-gradient(180deg, #fff3e0, rgba(255, 243, 224, 0));
-  }
-
-  &::after {
-    bottom: 0;
-    background: linear-gradient(0deg, #fffdfb, rgba(255, 253, 251, 0));
-  }
-}
-
-.content {
-  height: 100%;
-  overflow-x: hidden;
-  padding: 0 32rpx;
-  box-sizing: border-box;
-}
-
-.creation-body {
-  /* 呼吸边距放在滚动内容内部，滚动到顶/底时卡片不被贴边硬切 */
-  padding: 35rpx 0 48rpx;
-}
-
-/* 卡片与区块标题：与创作页统一样式 */
-.config-card {
-  margin: 0 6rpx 28rpx;
-  padding: 28rpx;
-  border-radius: 24rpx;
-  background: $color-surface;
-  box-shadow: 0 6rpx 20rpx rgba(150, 100, 40, 0.14);
-}
-
-/* ============================================================
- * 桌面 H5 适配：1200px 以上原图卡与提示词卡左右并排
- * ============================================================ */
-@media (min-width: $breakpoint-desktop) {
-  .creation-body {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24rpx;
-    align-items: start;
-  }
-
-  .config-card {
-    margin: 0 6rpx;
-  }
-}
-
-.config-card:first-child {
-  margin-top: 0;
-}
-
-.config-title {
-  padding-bottom: 28rpx;
-  color: #8a6840;
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
-.config-title em {
-  color: #d9be9b;
+.flow-body {
+  @include flow-body(2);
 }
 
 /* 导入区 */
@@ -389,7 +363,7 @@ const goLibrary = () => {
   padding: 0 20rpx;
   border: 0;
   border-radius: 999rpx;
-  background: #f7edde;
+  background: $color-primary-light;
   color: $color-primary;
   font-size: 24rpx;
   line-height: 1;
@@ -473,17 +447,12 @@ const goLibrary = () => {
 }
 
 /* 提示词区 */
-.prompt-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
-.prompt-head text {
+.prompt-count {
+  flex-shrink: 0;
   color: $color-muted;
   font-size: 24rpx;
   font-weight: 400;
+  @include numeric;
 }
 
 .prompt-input {
@@ -500,38 +469,6 @@ const goLibrary = () => {
   margin-top: 16rpx;
   color: $color-muted;
   font-size: 22rpx;
-}
-
-/* 底部操作 */
-.actions {
-  @include action-bar;
-  text-align: center;
-}
-
-.actions button {
-  /* uni-app button 默认带内边距且文本不居中，改为 flex 居中并清掉内边距 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  width: 100%;
-  height: $tap-size;
-  padding: 0;
-  border: 0;
-  border-radius: 24rpx;
-  background: linear-gradient(135deg, #8a6840 0%, #9c6e38 100%);
-  color: #fff;
-  font-size: 28rpx;
-  font-weight: 700;
-}
-
-.actions button:after {
-  border: 0;
-}
-
-.actions button[disabled] {
-  background: #d2ddd6;
-  color: #f4f6f5;
 }
 
 .action-icon {

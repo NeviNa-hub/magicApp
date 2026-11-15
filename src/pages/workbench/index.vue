@@ -22,7 +22,9 @@
           </view>
           <view class="card-footer">
             <text class="footer-note">支持宣纸留白与精细排版</text>
-            <button class="footer-button" @click="startTool('文字生图')">研墨生图</button>
+            <button class="footer-button" @click="startTool('文字生图')">
+              研墨生图
+            </button>
           </view>
         </view>
 
@@ -39,8 +41,16 @@
               <text class="film-name">水墨分镜胶卷轨道</text>
               <view class="film-marquee">
                 <view class="film-marquee-track">
-                  <view v-for="copy in 2" :key="copy" class="film-marquee-group">
-                    <text v-for="chip in filmChips" :key="chip" class="film-chip">
+                  <view
+                    v-for="copy in 2"
+                    :key="copy"
+                    class="film-marquee-group"
+                  >
+                    <text
+                      v-for="chip in filmChips"
+                      :key="chip"
+                      class="film-chip"
+                    >
                       {{ chip }}
                     </text>
                   </view>
@@ -48,16 +58,23 @@
               </view>
             </view>
             <view class="film-frames">
-              <view v-for="frame in frames" :key="frame.frameId" class="film-frame">
-                <i class="frame-thumb"></i>
-                <small class="frame-label">{{ frame.name }}</small>
+              <view
+                v-for="frame in frames"
+                :key="frame.frameId"
+                class="film-frame"
+              >
+                <view class="frame-thumb"></view>
+                <text class="frame-label">{{ frame.name }}</text>
               </view>
               <text v-if="!frames.length" class="film-empty">分镜待载入</text>
             </view>
           </view>
           <view class="card-footer">
             <text class="footer-note">四镜连贯 · 独立成片</text>
-            <button class="footer-button button-blue" @click="startTool('视频创作')">
+            <button
+              class="footer-button button-blue"
+              @click="startTool('视频创作')"
+            >
               逐帧调度
             </button>
           </view>
@@ -70,7 +87,9 @@
             <text class="card-tag tag-purple">净辞·重塑</text>
             <text class="card-ready ready-purple">无损超分</text>
           </view>
-          <text class="card-desc">还原本真质感，微米级去噪与旧照色彩修复。</text>
+          <text class="card-desc"
+            >还原本真质感，微米级去噪与旧照色彩修复。</text
+          >
           <view class="compare-art">
             <app-image
               class="art-image compare-before"
@@ -88,7 +107,10 @@
           </view>
           <view class="card-footer">
             <text class="footer-note">最大支持五千万像素解析</text>
-            <button class="footer-button button-purple" @click="startTool('图片优化')">
+            <button
+              class="footer-button button-purple"
+              @click="startTool('图片优化')"
+            >
               净炼重绘
             </button>
           </view>
@@ -136,8 +158,18 @@ const drafts = [
     time: "2小时前",
     status: "待生成",
   },
-  { draftId: 2, title: "茶室空间运镜脚本设计", time: "昨日", status: "已分镜" },
-  { draftId: 3, title: "老照片人物去污处理", time: "3日前", status: "已完成" },
+  {
+    draftId: 2,
+    title: "茶室空间运镜脚本设计",
+    time: "昨日",
+    status: "已分镜",
+  },
+  {
+    draftId: 3,
+    title: "老照片人物去污处理",
+    time: "3日前",
+    status: "已完成",
+  },
 ];
 const filmChips = ["四开画幅", "轨迹平滑", "60FPS 帧率"];
 
@@ -170,18 +202,14 @@ const startTool = (name) => {
 
 <style scoped lang="scss">
 .workbench-page {
-  height: 100vh;
-  overflow: hidden;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-  color: $color-ink;
+  @include page-shell;
 }
 
 .content {
-  height: calc(100vh - 210rpx - var(--status-bar-height, 0px));
-  overflow-x: hidden;
+  @include main-scroll(8rpx);
+
   padding: 28rpx 40rpx;
   padding-bottom: calc(#{24rpx} + env(safe-area-inset-bottom));
-  box-sizing: border-box;
 }
 
 /* ========== 工具卡片通用结构 ========== */
@@ -357,7 +385,13 @@ const startTool = (name) => {
   min-width: 0;
   margin-left: 20rpx;
   overflow: hidden;
-  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
 }
 
 .film-marquee-track {

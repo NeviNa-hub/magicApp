@@ -1,168 +1,125 @@
 <template>
-  <!-- #ifdef H5 -->
-  <view class="video-creation-page">
-    <app-page-header title="视频创作" />
-    <view class="step-bar">
-      <view class="step active"> <i>1</i><text>规制与意境</text> </view>
-      <view class="step-connector"></view>
-      <view class="step inactive"><i>2</i><text>画质与渲染</text></view>
-    </view>
-    <view class="scroll-window">
-      <scroll-view
-        scroll-y
-        :show-scrollbar="false"
-        class="content"
-        :style="contentKeyboardStyle"
-      >
-        <el-form
-          ref="formRef"
-          :model="formData"
-          :rules="formRules"
-          label-position="top"
-          class="creation-form"
-        >
-          <view class="config-card">
-            <view class="config-title"><em>壹 ·</em> 规制画幅</view>
-            <el-form-item prop="ratio" class="ratio-form-item">
-              <el-radio-group v-model="formData.ratio" class="ratio-list">
-                <el-radio
-                  v-for="(ratio, index) in ratios"
-                  :key="ratio.ratioId"
-                  :value="ratio.value"
-                  class="ratio-card"
-                  :class="[
-                    `is-ratio-${index + 1}`,
-                    { 'is-selected': formData.ratio === ratio.value },
-                  ]"
-                >
-                  <text class="ratio-badge">{{ ratio.value }}</text>
-                  <text class="ratio-name">{{ ratio.name }}</text>
-                  <text class="ratio-desc">{{ ratio.description }}</text>
-                  <text v-if="ratio.recommended" class="recommend">推荐</text>
-                </el-radio>
-              </el-radio-group>
-            </el-form-item>
+  <creation-page title="视频创作" :steps="steps">
+    <view class="flow-body">
+      <app-config-card index="壹" title="规制画幅">
+        <view class="ratio-list">
+          <view
+            v-for="(ratio, index) in ratios"
+            :key="ratio.ratioId"
+            class="ratio-card"
+            :class="[
+              `is-ratio-${index + 1}`,
+              { 'is-selected': formData.ratio === ratio.value },
+            ]"
+            @click="formData.ratio = ratio.value"
+          >
+            <text class="ratio-badge">{{ ratio.value }}</text>
+            <text class="ratio-name">{{ ratio.name }}</text>
+            <text class="ratio-desc">{{ ratio.description }}</text>
+            <text v-if="ratio.recommended" class="recommend">推荐</text>
           </view>
+        </view>
+      </app-config-card>
 
-          <view class="config-card">
-            <view class="config-title"><em>贰 ·</em> 创作模式</view>
-            <el-radio-group
-              v-model="formData.mode"
-              class="mode-switch"
-              @change="handleModeChange"
-            >
-              <el-radio-button
-                v-for="mode in modes"
-                :key="mode.modeId"
-                :value="mode.modeId"
-                class="mode-option"
-              >
-                <el-icon>
-                  <VideoCamera v-if="mode.modeId === 'text'" />
-                  <PictureFilled v-else />
-                </el-icon>
-                <text>{{ mode.name }}</text>
-              </el-radio-button>
-            </el-radio-group>
-
-            <el-form-item
-              v-if="formData.mode === 'image'"
-              prop="imagePath"
-              class="image-form-item"
-            >
-              <view class="image-picker">
-                <app-image
-                  v-if="selectedImage"
-                  class="image-thumb"
-                  :src="selectedImage.url || selectedImage.path"
-                  mode="aspectFill"
-                />
-                <view class="image-copy">
-                  <text class="image-title">{{ imageTitle }}</text>
-                  <text class="image-hint">{{ imageHint }}</text>
-                </view>
-                <el-button class="image-pick-button" @click="chooseImage">
-                  <el-icon><Upload /></el-icon>
-                  {{
-                    isUploading ? "上传中…" : selectedImage ? "更换" : "选图"
-                  }}
-                </el-button>
-              </view>
-            </el-form-item>
+      <app-config-card index="贰" title="创作模式">
+        <view class="mode-switch">
+          <view
+            v-for="mode in modes"
+            :key="mode.modeId"
+            class="mode-option"
+            :class="{ 'is-active': formData.mode === mode.modeId }"
+            @click="formData.mode = mode.modeId"
+          >
+            <!-- #ifdef H5 -->
+            <el-icon>
+              <VideoCamera v-if="mode.modeId === 'text'" />
+              <PictureFilled v-else />
+            </el-icon>
+            <!-- #endif -->
+            <text>{{ mode.name }}</text>
           </view>
+        </view>
 
-          <view class="config-card">
-            <view class="config-title prompt-title">
-              <view><em>叁 ·</em> 意境构想</view>
-              <el-button link class="prompt-clear" @click="clearPrompt">
-                <el-icon><RefreshLeft /></el-icon>
-                清空辞藻
-              </el-button>
-            </view>
-            <el-form-item prop="prompt" class="prompt-form-item">
-              <el-input
-                v-model="formData.prompt"
-                type="textarea"
-                :maxlength="promptLimit"
-                :rows="4"
-                resize="none"
-                class="prompt-input"
-                placeholder="写下动卷意境，点染光影与运镜"
-              />
-            </el-form-item>
-            <view class="prompt-foot">
-              <text class="prompt-count">
-                {{ formData.prompt.length }} / {{ promptLimit }}字
-              </text>
-              <el-button class="polish-button" @click="polishPrompt">
-                <el-icon><MagicStick /></el-icon>
-                润色辞藻
-              </el-button>
-            </view>
-
-            <view class="suggestion-head">
-              <el-icon><EditPen /></el-icon>
-              <text>笔墨词枕 · 点击引入灵感</text>
-            </view>
-            <view class="suggestions">
-              <el-button
-                v-for="item in suggestions"
-                :key="item"
-                class="suggestion-chip"
-                @click="appendPrompt(item)"
-              >
-                <el-icon><Plus /></el-icon>
-                <text>{{ item }}</text>
-              </el-button>
-            </view>
+        <view v-if="formData.mode === 'image'" class="image-picker">
+          <app-image
+            v-if="selectedImage"
+            class="image-thumb"
+            :src="selectedImage.url || selectedImage.path"
+            mode="aspectFill"
+          />
+          <view class="image-copy">
+            <text class="image-title">{{ imageTitle }}</text>
+            <text class="image-hint">{{ imageHint }}</text>
           </view>
-        </el-form>
-      </scroll-view>
+          <button class="image-pick-button" @click="chooseImage">
+            <!-- #ifdef H5 -->
+            <el-icon><Upload /></el-icon>
+            <!-- #endif -->
+            {{ isUploading ? "上传中…" : selectedImage ? "更换" : "选图" }}
+          </button>
+        </view>
+      </app-config-card>
+
+      <app-config-card index="叁" title="意境构想">
+        <template #extra>
+          <button class="prompt-clear" @click="clearPrompt">
+            <!-- #ifdef H5 -->
+            <el-icon><RefreshLeft /></el-icon>
+            <!-- #endif -->
+            清空辞藻
+          </button>
+        </template>
+        <textarea
+          v-model="formData.prompt"
+          :maxlength="promptLimit"
+          class="prompt-input"
+          placeholder="写下动卷意境，点染光影与运镜"
+        />
+        <view class="prompt-foot">
+          <text class="prompt-count">
+            {{ formData.prompt.length }} / {{ promptLimit }}字
+          </text>
+          <button class="polish-button" @click="polishPrompt">
+            <!-- #ifdef H5 -->
+            <el-icon><MagicStick /></el-icon>
+            <!-- #endif -->
+            润色辞藻
+          </button>
+        </view>
+
+        <view class="suggestion-head">
+          <!-- #ifdef H5 -->
+          <el-icon><EditPen /></el-icon>
+          <!-- #endif -->
+          <text>笔墨词枕 · 点击引入灵感</text>
+        </view>
+        <view class="suggestions">
+          <button
+            v-for="item in suggestions"
+            :key="item"
+            class="suggestion-chip"
+            @click="appendPrompt(item)"
+          >
+            <!-- #ifdef H5 -->
+            <el-icon><Plus /></el-icon>
+            <!-- #endif -->
+            <text>{{ item }}</text>
+          </button>
+        </view>
+      </app-config-card>
     </view>
 
-    <view class="bottom-bar" :style="barKeyboardStyle">
-      <el-button
-        class="next-button"
-        :loading="isSubmitting"
-        :disabled="isSubmitting"
-        @click="goNext"
-      >
+    <template #footer>
+      <app-flow-button block :loading="isSubmitting" @click="goNext">
         下一步：规格画质
-        <el-icon v-if="!isSubmitting" class="next-icon"><ArrowRight /></el-icon>
-      </el-button>
-    </view>
-    <app-bottom-nav active="creation" desktop-only />
-  </view>
-  <!-- #endif -->
-
-  <!-- #ifndef H5 -->
-  <view class="platform-unavailable">
-    <app-page-header title="视频创作" />
-    <text class="platform-tip">
-      视频创作依赖 Element Plus，请使用 H5 端体验完整交互。
-    </text>
-  </view>
-  <!-- #endif -->
+        <!-- #ifdef H5 -->
+        <el-icon v-if="!isSubmitting" class="next-icon">
+          <ArrowRight />
+        </el-icon>
+        <!-- #endif -->
+      </app-flow-button>
+    </template>
+  </creation-page>
 </template>
 
 <script setup>
@@ -182,15 +139,25 @@ import {
 // #endif
 
 import { uploadImage } from "@/apis/upload";
-import AppBottomNav from "@/components/AppBottomNav/index.vue";
+import AppConfigCard from "@/components/AppConfigCard/index.vue";
+import AppFlowButton from "@/components/AppFlowButton/index.vue";
 import AppImage from "@/components/AppImage/index.vue";
-import AppPageHeader from "@/components/AppPageHeader/index.vue";
-import useKeyboardInset from "@/hooks/useKeyboardInset";
+import CreationPage from "@/components/CreationPage/index.vue";
 import { DRAFT_KEYS, saveCreationDraft } from "@/utils/creation-draft";
 import { chooseSingleImage } from "@/utils/image-picker";
 import { appendPromptText, polishPromptText } from "@/utils/prompt";
 import { getErrorMessage } from "@/utils/request";
 
+const steps = [
+  {
+    label: "规制与意境",
+    state: "active",
+  },
+  {
+    label: "画质与渲染",
+    state: "inactive",
+  },
+];
 const ratios = [
   {
     ratioId: 1,
@@ -214,20 +181,11 @@ const ratios = [
 ];
 const modes = [{ modeId: "text", name: "文字生视频" }];
 const suggestions = ["清溪泛舟", "浮岚暖翠", "寒江雪霁", "竹影摇曳"];
-const promptLimit = 300;
+const promptLimit = 1000;
 const polishSuffix = "水波微澜，晨雾轻笼，气韵徐徐流转";
 const selectedImage = ref(null);
 const isSubmitting = ref(false);
 const isUploading = ref(false);
-const formRef = ref(null);
-const { keyboardInset } = useKeyboardInset();
-const contentKeyboardStyle = computed(() => ({
-  paddingBottom:
-    keyboardInset.value > 0 ? `${keyboardInset.value}px` : undefined,
-}));
-const barKeyboardStyle = computed(() => ({
-  bottom: keyboardInset.value > 0 ? `${keyboardInset.value}px` : undefined,
-}));
 const formData = reactive({
   ratio: "16:9",
   mode: "text",
@@ -243,49 +201,6 @@ const imageHint = computed(() =>
 );
 
 /**
- * 校验意境构想，文字生视频模式下必填。
- * @param {Object} rule 校验规则。
- * @param {string} value 当前意境内容。
- * @param {Function} callback 校验回调。
- * @returns {void}
- */
-const validatePrompt = (rule, value, callback) => {
-  if (formData.mode === "text" && !String(value || "").trim()) {
-    callback(new Error("请先填写意境构想"));
-    return;
-  }
-
-  callback();
-};
-
-/**
- * 校验图卷，图卷生动境模式下必选。
- * @param {Object} rule 校验规则。
- * @param {string} value 图卷路径。
- * @param {Function} callback 校验回调。
- * @returns {void}
- */
-const validateImage = (rule, value, callback) => {
-  if (formData.mode === "image" && !value) {
-    callback(new Error("请先传入一张图卷"));
-    return;
-  }
-
-  callback();
-};
-
-const formRules = {
-  ratio: [{ required: true, message: "请先选择画幅", trigger: "change" }],
-  imagePath: [{ validator: validateImage, trigger: "change" }],
-  prompt: [{ validator: validatePrompt, trigger: "blur" }],
-};
-
-// 切换创作模式时清除另一模式留下的校验提示
-const handleModeChange = () => {
-  formRef.value?.clearValidate(["prompt", "imagePath"]);
-};
-
-/**
  * 将灵感词追加到意境构想，已有内容时用逗号衔接。
  * @param {string} value 待追加的灵感词。
  * @returns {void}
@@ -294,20 +209,17 @@ const appendPrompt = (value) => {
   formData.prompt = appendPromptText(formData.prompt, value);
 };
 
-// 清空意境构想并移除对应校验提示
+// 清空意境构想
 const clearPrompt = () => {
   formData.prompt = "";
-  formRef.value?.clearValidate("prompt");
 };
 
 // 在现有意境后追加润色句式，空意境时以寒江雪意起笔
 const polishPrompt = () => {
-  const suffix = polishSuffix || "墨色清润，气韵徐徐流转";
-
   formData.prompt = polishPromptText(
     formData.prompt.trim(),
-    suffix,
-    `寒江孤舟，雪意朦胧，水波缓缓流动，${suffix}`,
+    polishSuffix,
+    `寒江孤舟，雪意朦胧，水波缓缓流动，${polishSuffix}`,
   );
 };
 
@@ -324,7 +236,6 @@ const chooseImage = async () => {
     if (!uploaded?.upload_id) throw new Error("上传结果无效");
     selectedImage.value = { ...image, uploadId: uploaded.upload_id };
     formData.imagePath = image.path;
-    formRef.value?.clearValidate("imagePath");
   } catch (error) {
     if (!String(error?.errMsg || "").includes("cancel")) {
       uni.showToast({
@@ -338,14 +249,23 @@ const chooseImage = async () => {
 };
 
 // 校验规制与意境后保存草稿，进入画质与渲染页
-const goNext = async () => {
+const goNext = () => {
   if (isSubmitting.value || isUploading.value) {
     return;
   }
 
-  try {
-    await formRef.value.validate();
-  } catch (error) {
+  if (!formData.ratio) {
+    uni.showToast({ title: "请先选择画幅", icon: "none" });
+    return;
+  }
+
+  if (formData.mode === "image" && !formData.imagePath) {
+    uni.showToast({ title: "请先传入一张图卷", icon: "none" });
+    return;
+  }
+
+  if (formData.mode === "text" && !formData.prompt.trim()) {
+    uni.showToast({ title: "请先填写意境构想", icon: "none" });
     return;
   }
 
@@ -372,168 +292,11 @@ const goNext = async () => {
 </script>
 
 <style scoped lang="scss">
-.video-creation-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-  /* 为固定底栏预留高度，避免滚动窗下缘被底栏遮挡 */
-  padding-bottom: calc(132rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(132rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-  color: $color-ink;
-
-  --el-color-primary: #{$color-primary};
-  --el-color-primary-light-3: #c89a63;
-  --el-color-primary-light-5: #d6b689;
-  --el-color-primary-light-7: #e4d0ad;
-  --el-color-primary-light-9: #f7edde;
-  --el-border-radius-base: #{12rpx};
-  --el-font-family: #{$font-family-base};
-  --el-font-size-base: #{28rpx};
-}
-
-.app-page-header,
-.step-bar {
-  flex: none;
-}
-
-/* 滚动窗：占据页头与底栏之间的全部剩余高度，边缘渐隐弱化切割感 */
-.scroll-window {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-
-  &::before,
-  &::after {
-    content: "";
-    position: absolute;
-    right: 0;
-    left: 0;
-    z-index: 2;
-    height: 28rpx;
-    pointer-events: none;
-  }
-
-  &::before {
-    top: 0;
-    background: linear-gradient(180deg, #fff3e0, rgba(255, 243, 224, 0));
-  }
-
-  &::after {
-    bottom: 0;
-    background: linear-gradient(0deg, #fffdfb, rgba(255, 253, 251, 0));
-  }
-}
-
-.content {
-  height: 100%;
-  overflow-x: hidden;
-  padding: 0 32rpx;
-  box-sizing: border-box;
-}
-
-.creation-form {
-  width: 100%;
-  /* 呼吸边距放在滚动内容内部，滚动到顶/底时卡片不被贴边硬切 */
-  padding: 35rpx 0 48rpx;
-}
-
-/* 卡片与区块标题：与文字生图页统一样式 */
-.config-card {
-  margin: 0 6rpx 28rpx;
-  padding: 28rpx;
-  border-radius: 24rpx;
-  background: $color-surface;
-  box-shadow: 0 6rpx 20rpx rgba(150, 100, 40, 0.14);
-}
-
-.config-card:first-child {
-  margin-top: 0;
-}
-
-.config-title {
-  padding-bottom: 28rpx;
-  color: #8a6840;
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
-.config-title em {
-  color: #d9be9b;
-}
-
-/* 步骤条：与文字生图页统一样式 */
-.step-bar {
-  height: 82rpx;
-  margin: 16rpx 32rpx 0;
-  padding: 8rpx;
-  display: flex;
-  align-items: center;
-  border: 1rpx solid rgba(63, 102, 86, 0.12);
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 8rpx 22rpx rgba(19, 76, 68, 0.06);
-}
-
-.step {
-  flex: 1;
-  padding: 12rpx 0;
-  border-radius: 16rpx;
-  color: $color-muted;
-  text-align: center;
-  font-size: 24rpx;
-  white-space: nowrap;
-}
-
-.step i {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 8rpx;
-  border-radius: 50%;
-  background: #dfdfd5;
-  color: $color-muted;
-  font-style: normal;
-  font-size: 22rpx;
-}
-
-.step-connector {
-  flex: 1;
-  height: 2rpx;
-  margin: 0 16rpx;
-  background: linear-gradient(90deg, #8a6840, #dfdfd5);
-}
-
-.step.active {
-  background: $color-primary;
-  color: #fff;
-  font-weight: 700;
-
-  i {
-    /* 徽章底色与步骤底色一致时改为半透明白底，避免圆形徽章融进背景 */
-    background: rgba(255, 255, 255, 0.24);
-    color: #fff;
-  }
+.flow-body {
+  @include flow-body(2);
 }
 
 /* 画幅规制 */
-.ratio-form-item {
-  margin-bottom: 24rpx;
-
-  :deep(.el-form-item__content) {
-    display: block;
-  }
-
-  :deep(.el-form-item__error) {
-    position: static;
-    padding-top: 10rpx;
-  }
-}
-
 .ratio-list {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -541,61 +304,20 @@ const goNext = async () => {
   width: 100%;
 }
 
-/* ============================================================
- * 桌面 H5 适配：1200px 以上画幅卡与模式卡并排，构想卡通栏
- * ============================================================ */
-@media (min-width: $breakpoint-desktop) {
-  .creation-form {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24rpx;
-    align-items: start;
-  }
-
-  .config-card {
-    margin: 0 6rpx;
-  }
-
-  /* 意境构想卡内容最多，桌面端占满整行 */
-  .config-card:nth-child(3) {
-    grid-column: 1 / -1;
-  }
-}
-
 .ratio-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
   width: 100%;
-  height: auto;
-  min-height: 0;
-  margin: 0;
+  min-width: 0;
   padding: 24rpx 12rpx 16rpx;
   border: 2rpx solid transparent;
   border-radius: 20rpx;
   background: #f8faf7;
   box-sizing: border-box;
-
-  :deep(.el-radio__input) {
-    display: none;
-  }
-
-  :deep(.el-radio__label) {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    align-items: center;
-    gap: 12rpx;
-    width: 100%;
-    padding: 0;
-    color: inherit;
-    font-size: inherit;
-    white-space: normal;
-  }
-
-  &.is-selected {
-    border-color: $color-primary;
-    background: linear-gradient(135deg, #f7edde 0%, #f7faf8 100%);
-    box-shadow: 0 0 0 1rpx $color-primary inset;
-  }
+  cursor: pointer;
 }
 
 .ratio-badge {
@@ -624,6 +346,12 @@ const goNext = async () => {
 .ratio-card.is-ratio-3 .ratio-badge {
   background: #eceaf6;
   color: #595bdc;
+}
+
+.ratio-card.is-selected {
+  border-color: $color-primary;
+  background: linear-gradient(135deg, #f7edde 0%, #f7faf8 100%);
+  box-shadow: 0 0 0 1rpx $color-primary inset;
 }
 
 .ratio-card.is-selected .ratio-badge {
@@ -665,61 +393,41 @@ const goNext = async () => {
   display: flex;
   gap: 8rpx;
   width: 100%;
-  margin-top: 0;
   padding: 8rpx;
   border-radius: 20rpx;
-  background: #f7edde;
+  background: $color-primary-light;
+  box-sizing: border-box;
+}
 
-  :deep(.el-radio-button) {
-    flex: 1;
-  }
+.mode-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  height: 76rpx;
+  border-radius: 16rpx;
+  color: #4e665e;
+  font-size: 24rpx;
+}
 
-  :deep(.el-radio-button__inner) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8rpx;
-    width: 100%;
-    height: 76rpx;
-    padding: 0;
-    border: 0;
-    border-radius: 16rpx;
-    background: transparent;
-    box-shadow: none;
-    color: #4e665e;
-    font-size: 24rpx;
-  }
+.mode-option.is-active {
+  background: $color-surface;
+  color: $color-primary;
+  font-weight: 700;
+  box-shadow: 0 4rpx 12rpx rgba(5, 96, 76, 0.08);
+}
 
-  :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-    background: $color-surface;
-    color: $color-primary;
-    font-weight: 700;
-    box-shadow: 0 4rpx 12rpx rgba(5, 96, 76, 0.08);
-  }
-
-  :deep(.el-icon) {
-    font-size: 22rpx;
-  }
+.mode-option .el-icon {
+  font-size: 22rpx;
 }
 
 /* 图卷选择 */
-.image-form-item {
-  margin: 20rpx 0 0;
-
-  :deep(.el-form-item__content) {
-    display: block;
-  }
-
-  :deep(.el-form-item__error) {
-    position: static;
-    padding-top: 10rpx;
-  }
-}
-
 .image-picker {
   display: flex;
   align-items: center;
   gap: 16rpx;
+  margin-top: 20rpx;
   padding: 20rpx 24rpx;
   border: 2rpx dashed #bfd8ce;
   border-radius: 20rpx;
@@ -765,74 +473,43 @@ const goNext = async () => {
   border: 1rpx solid #bfd8ce;
   border-radius: 12rpx;
   background: #f8faf7;
-  color: #8a6840;
+  color: $color-primary-deep;
   font-size: 22rpx;
+  line-height: 1;
+}
 
-  :deep(.el-icon) {
-    margin-right: 6rpx;
-    font-size: 22rpx;
-  }
-
-  &:hover {
-    border-color: $color-primary;
-    background: #f7edde;
-    color: $color-primary;
-  }
+.image-pick-button:after {
+  border: 0;
 }
 
 /* 意境构想 */
-.prompt-form-item {
-  margin: 0;
-
-  :deep(.el-form-item__content) {
-    display: block;
-  }
-
-  :deep(.el-form-item__error) {
-    position: static;
-    padding-top: 10rpx;
-  }
-}
-
-.prompt-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
 .prompt-clear {
   @include tap-area(56rpx);
+  flex-shrink: 0;
   height: 56rpx;
+  margin: 0;
   padding: 0 8rpx;
+  border: 0;
+  background: transparent;
   color: $color-muted;
   font-size: 24rpx;
+  line-height: 1;
+}
 
-  &:hover {
-    color: $color-primary;
-  }
-
-  :deep(.el-icon) {
-    margin-right: 4rpx;
-    font-size: 22rpx;
-  }
+.prompt-clear:after {
+  border: 0;
 }
 
 .prompt-input {
   width: 100%;
-  margin-top: 16rpx;
-
-  :deep(.el-textarea__inner) {
-    min-height: 210rpx;
-    padding: 20rpx;
-    border: 0;
-    border-radius: 16rpx;
-    background: #f8faf7;
-    box-shadow: none;
-    color: $color-ink;
-    font-size: 28rpx;
-    line-height: 1.6;
-  }
+  height: 210rpx;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  background: #f8faf7;
+  box-sizing: border-box;
+  color: $color-ink;
+  font-size: 28rpx;
+  line-height: 1.6;
 }
 
 .prompt-foot {
@@ -858,16 +535,11 @@ const goNext = async () => {
   background: #f3e4cd;
   color: $color-primary;
   font-size: 22rpx;
+  line-height: 1;
+}
 
-  &:hover {
-    background: #ecd8b8;
-    color: $color-primary;
-  }
-
-  :deep(.el-icon) {
-    margin-right: 6rpx;
-    font-size: 22rpx;
-  }
+.polish-button:after {
+  border: 0;
 }
 
 /* 灵感词枕 */
@@ -876,12 +548,8 @@ const goNext = async () => {
   align-items: center;
   gap: 8rpx;
   margin: 24rpx 8rpx 0;
-  color: #8a6840;
+  color: $color-primary-deep;
   font-size: 24rpx;
-
-  :deep(.el-icon) {
-    font-size: 22rpx;
-  }
 }
 
 .suggestions {
@@ -892,6 +560,8 @@ const goNext = async () => {
 }
 
 .suggestion-chip {
+  @include tap-area(64rpx);
+  gap: 6rpx;
   height: 64rpx;
   margin: 0;
   padding: 0 16rpx;
@@ -901,65 +571,21 @@ const goNext = async () => {
   color: #4e665e;
   font-size: 22rpx;
   font-weight: 400;
-
-  &:hover {
-    border-color: #bfd8ce;
-    background: #f8faf7;
-    color: #4e665e;
-  }
-
-  :deep(.el-icon) {
-    margin-right: 6rpx;
-    font-size: 22rpx;
-  }
+  line-height: 1;
 }
 
-/* 底部操作 */
-.bottom-bar {
-  @include action-bar;
-  display: flex;
-  align-items: center;
-}
-
-.next-button {
-  flex: 1;
-  width: 100%;
-  height: $tap-size;
-  min-width: 0;
-  margin: 0;
+.suggestion-chip:after {
   border: 0;
-  border-radius: 24rpx;
-  background: $color-primary;
-  color: #fff;
-  font-size: 28rpx;
-  font-weight: 700;
-
-  &:hover {
-    background: #9c6e38;
-    color: #fff;
-  }
-
-  &.is-disabled {
-    opacity: 0.55;
-  }
 }
 
 .next-icon {
-  margin-left: 8rpx;
   font-size: 22rpx;
 }
 
-.platform-unavailable {
-  min-height: 100vh;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-}
-
-.platform-tip {
-  display: block;
-  padding: 80rpx 48rpx;
-  color: #4e665e;
-  font-size: 28rpx;
-  line-height: 1.8;
-  text-align: center;
+@media (min-width: $breakpoint-desktop) {
+  /* 意境构想卡内容最多，桌面端占满整行 */
+  .flow-body > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
 }
 </style>

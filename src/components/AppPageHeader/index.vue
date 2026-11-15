@@ -2,20 +2,22 @@
   <view class="app-page-header">
     <view v-if="canGoBack" class="header-back" @click="handleBack">‹</view>
     <view class="header-title">{{ title }}</view>
-    <view v-if="showPoints" class="header-points">
+    <view v-if="showPoints" class="header-points" @click="openPointsDialog">
       <text class="points-icon">✦</text>
       <text class="points-label">积分</text>
       <text class="points-value">{{ pointsText }}</text>
       <text v-if="pointsState.balance !== null" class="points-detail">
-      明细
+        明细
       </text>
     </view>
+    <points-dialog v-model="isPointsDialogVisible" />
   </view>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from "vue";
 
+import PointsDialog from "@/components/PointsDialog/index.vue";
 import { loadPointsBalance, pointsState } from "@/stores";
 
 /**
@@ -38,9 +40,15 @@ const TOP_LEVEL_ROUTES = [
 ];
 
 const canGoBack = ref(false);
+const isPointsDialogVisible = ref(false);
 const pointsText = computed(() =>
   pointsState.balance === null ? "—" : pointsState.balance,
 );
+
+// 打开积分使用流水弹窗
+const openPointsDialog = () => {
+  isPointsDialogVisible.value = true;
+};
 
 // 判断当前页面是否为底部导航主页面。
 const isTopLevelPage = () => {
@@ -98,15 +106,15 @@ onMounted(() => {
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  border-bottom: 1rpx solid rgba(190, 140, 70, 0.18);
+  border-bottom: 1rpx solid rgba(184, 134, 78, 0.18);
   background: #ffecd2;
-  color: #b3712a;
+  color: $color-primary-deep;
 }
 
 .header-title {
   flex: 1;
   min-width: 0;
-  color: #ec8302;
+  color: $color-primary-deep;
   font-size: 38rpx;
   font-weight: 700;
   line-height: 1.3;
@@ -117,7 +125,7 @@ onMounted(() => {
   @include tap-area(72rpx);
   flex-shrink: 0;
   margin: 0 8rpx 0 (-20rpx);
-  color: #ec8302;
+  color: $color-primary-deep;
   font-size: 44rpx;
   line-height: 1;
 }
@@ -128,17 +136,18 @@ onMounted(() => {
   align-items: center;
   margin-left: 16rpx;
   padding: 8rpx 16rpx;
-  border: 1rpx solid rgba(236, 131, 2, 0.22);
+  border: 1rpx solid rgba(184, 134, 78, 0.24);
   border-radius: 999rpx;
   background: #fffaf3;
-  color: #b3712a;
+  color: $color-primary-deep;
   font-size: 24rpx;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .points-icon {
   margin-right: 8rpx;
-  color: #ff0000;
+  color: #d9a86b;
   font-size: 22rpx;
 }
 
@@ -148,7 +157,7 @@ onMounted(() => {
 
 .points-value {
   margin-left: 8rpx;
-  color: #ec0202;
+  color: $color-warning;
   font-size: 26rpx;
   font-weight: 700;
   @include numeric;
@@ -157,8 +166,15 @@ onMounted(() => {
 .points-detail {
   margin-left: 12rpx;
   padding-left: 12rpx;
-  border-left: 1rpx solid rgba(236, 131, 2, 0.25);
-  color: #b3712a;
+  border-left: 1rpx solid rgba(184, 134, 78, 0.25);
+  color: $color-primary-deep;
   font-size: 22rpx;
+}
+
+@media (hover: hover) {
+  .header-points:hover {
+    border-color: rgba(184, 134, 78, 0.45);
+    background: #fff6e8;
+  }
 }
 </style>

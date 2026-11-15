@@ -36,16 +36,19 @@ const redirectToAuth = () => {
 };
 
 // 登录态缺失、无效或已过期时统一按会话失效处理。
-const isUnauthorizedCode = (code) =>
-  code === ERROR_CODES.UNAUTHORIZED || code === 40102;
+const isUnauthorizedCode = (code) => code === ERROR_CODES.UNAUTHORIZED;
 
-// 请求异常统一通过全局提示展示，取消请求和会话失效不提示。
-const showRequestError = (error) => {
+// 请求异常统一通过全局提示展示；silent 请求（如实时报价）只处理会话失效。
+const showRequestError = (error, silent = false) => {
   if (error.code === ERROR_CODES.REQUEST_ABORTED) {
     return;
   }
 
   if (isUnauthorizedCode(error.code) && redirectToAuth()) {
+    return;
+  }
+
+  if (silent) {
     return;
   }
 
@@ -121,8 +124,7 @@ const buildRequestKey = (method, url, params) =>
   `${method}:${buildUrl(url)}:${JSON.stringify(params)}`;
 
 // 后端 code 与 HTTP 状态码一致；响应缺少 code 时直接用状态码兜底
-const resolveHttpErrorCode = (statusCode) =>
-  statusCode || ERROR_CODES.SERVER_ERROR;
+const resolveHttpErrorCode = (statusCode) => statusCode || ERROR_CODES.SERVER_ERROR;
 
 /**
  * 发送一次底层请求并解包响应。
@@ -174,8 +176,7 @@ const sendRequest = (config) =>
       timeout: config.timeout,
       success: (response) => {
         const body = response.data;
-        const isHttpSuccess =
-          response.statusCode >= 200 && response.statusCode < 300;
+        const isHttpSuccess = response.statusCode >= 200 && response.statusCode < 300;
 
         if (!isHttpSuccess) {
           finish(
@@ -183,25 +184,19 @@ const sendRequest = (config) =>
             new ApiError(
               body?.code || resolveHttpErrorCode(response.statusCode),
               body?.message || `请求失败（${response.statusCode}）`,
-              body,
-            ),
+              body
+            )
           );
           return;
         }
 
         if (!body || typeof body !== "object" || !("code" in body)) {
-          finish(
-            reject,
-            new ApiError(ERROR_CODES.SERVER_ERROR, "响应格式不正确", body),
-          );
+          finish(reject, new ApiError(ERROR_CODES.SERVER_ERROR, "响应格式不正确", body));
           return;
         }
 
         if (body.code !== ERROR_CODES.SUCCESS) {
-          finish(
-            reject,
-            new ApiError(body.code, body.message || "请求失败", body.data),
-          );
+          finish(reject, new ApiError(body.code, body.message || "请求失败", body.data));
           return;
         }
 
@@ -209,39 +204,28 @@ const sendRequest = (config) =>
           resolve,
           config.includeMessage
             ? { ...body.data, message: body.message || "" }
-            : body.data,
+            : body.data
         );
       },
       fail: (error) => {
         const errMsg = String(error?.errMsg || "");
 
         if (config.signal?.aborted) {
-          finish(
-            reject,
-            new ApiError(ERROR_CODES.REQUEST_ABORTED, "请求已取消"),
-          );
+          finish(reject, new ApiError(ERROR_CODES.REQUEST_ABORTED, "请求已取消"));
           return;
         }
 
         if (errMsg.includes("timeout")) {
           finish(
             reject,
-            new ApiError(
-              ERROR_CODES.NETWORK_ERROR,
-              "请求超时，请稍后重试",
-              error,
-            ),
+            new ApiError(ERROR_CODES.NETWORK_ERROR, "请求超时，请稍后重试", error)
           );
           return;
         }
 
         finish(
           reject,
-          new ApiError(
-            ERROR_CODES.NETWORK_ERROR,
-            "网络连接不可用，请稍后重试",
-            error,
-          ),
+          new ApiError(ERROR_CODES.NETWORK_ERROR, "网络连接不可用，请稍后重试", error)
         );
       },
     });
@@ -259,6 +243,7 @@ const sendRequest = (config) =>
  * @param {number} [config.timeout] 覆盖默认超时时间。
  * @param {AbortSignal} [config.signal] 取消信号。
  * @param {boolean} [config.includeMessage] 是否在 data 上合并响应顶层 message，供任务失败原因等场景使用。
+ * @param {boolean} [config.silent] 是否静默处理普通请求异常，仅保留会话失效处理。
  * @returns {Promise<*>} 接口 data；开启 includeMessage 时返回合并了顶层 message 的 data 对象。
  */
 export default function request(config) {
@@ -281,7 +266,7 @@ export default function request(config) {
       timeout,
     })
       .catch((error) => {
-        showRequestError(error);
+        showRequestError(error, config.silent);
         throw error;
       })
       .finally(() => pendingRequests.delete(key));
@@ -297,7 +282,7 @@ export default function request(config) {
     params,
     timeout,
   }).catch((error) => {
-    showRequestError(error);
+    showRequestError(error, config.silent);
     throw error;
   });
 }

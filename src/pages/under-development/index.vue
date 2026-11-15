@@ -47,19 +47,11 @@ const goBack = () => {
 
 <style scoped lang="scss">
 .development-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  box-sizing: border-box;
-  overflow: hidden;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-  color: $color-ink;
+  @include page-shell;
 }
 
 .content-area {
-  height: calc(100vh - 210rpx - var(--status-bar-height, 0px));
-  overflow-x: hidden;
-  box-sizing: border-box;
+  @include main-scroll(8rpx);
 }
 
 /* 内容整体垂直居中；内容超高时随内容增高并可滚动 */

@@ -39,7 +39,7 @@ export const IMAGE_CREATION_OPTIONS = {
   suggestions: ["江南烟雨", "宋代山水", "青绿设色", "晨曦微光", "枯墨留白"],
   polish_suffix: "画面空灵雅致，留白自然，笔触细腻",
   random_prompt: "薄雾晨光里的青绿山水，远处层峦叠嶂，近处一叶轻舟掠过溪面",
-  prompt_limit: 500,
+  prompt_limit: 400,
 };
 
 export const IMAGE_CANVAS_OPTIONS = {
@@ -96,9 +96,7 @@ const buildWorkName = (prompt = "") => {
 export const buildImageTaskStatus = (record) => {
   const payload = record.payload || {};
   const isCompleted = record.status === TASK_STATUS.COMPLETED;
-  const tags = [payload.style || "宋式水墨", payload.ratio || "1:1"].filter(
-    Boolean,
-  );
+  const tags = [payload.style || "宋式水墨", payload.ratio || "1:1"].filter(Boolean);
 
   return {
     task_id: record.taskId,
@@ -110,7 +108,8 @@ export const buildImageTaskStatus = (record) => {
     work_name: buildWorkName(payload.prompt),
     detail: `${payload.style || "宋式水墨"} · ${payload.ratio || "1:1"}`,
     tags,
-    cost: 2,
+    cost: record.costPoints ?? 2,
+    cost_points: record.costPoints ?? 0,
     estimated_time: IMAGE_CANVAS_OPTIONS.estimated_time,
     description: "研墨调色，点染山石梧桐与溪桥花茂",
     tip: isCompleted

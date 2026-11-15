@@ -1,53 +1,81 @@
 <template>
-  <view class="dialog-mask">
-    <view class="dialog-sheet progress-sheet">
-      <view class="dialog-title">{{ dialogTitle }}</view>
-      <template v-if="status === 'completed' && resultUrl && type === 'video'">
-        <video class="result-image" :src="resultUrl" controls />
-        <text class="result-hint">视频链接可能过期，请及时保存</text>
-      </template>
-      <template v-else-if="status === 'completed' && resultUrl">
-        <view class="result-preview">
-          <image
-            class="result-image"
-            :src="resultUrl"
-            mode="aspectFit"
-            @tap="previewResult"
-          />
-        </view>
-        <text class="result-hint"
-          >轻触图片放大查看；图片链接约 1 小时后失效，请及时保存</text
-        >
-      </template>
-      <template v-else>
-        <view class="progress-circle">{{ progress }}<small>%</small></view>
-        <text class="progress-label">{{ progressLabel }}</text>
-      </template>
-      <text class="progress-note">{{ note }}</text>
-      <!-- #ifdef H5 -->
-      <view class="dialog-actions">
-        <el-button class="back-button" @click="$emit('back')">
-          <el-icon><House /></el-icon>
-          返回工作台
-        </el-button>
-        <el-button class="confirm-button" @click="$emit('library')">
-          <el-icon><Collection /></el-icon>
-          前往作品库查看
-        </el-button>
+  <!-- 进度弹窗不提供遮罩关闭，避免任务进行中误触后失去进度入口 -->
+  <app-bottom-sheet
+    placement="bottom"
+    align="center"
+    :title="dialogTitle"
+    :close-on-mask="false"
+  >
+    <template v-if="status === 'completed' && resultUrl && type === 'video'">
+      <video class="result-image" :src="resultUrl" controls />
+      <text class="result-hint">视频链接可能过期，请及时保存</text>
+    </template>
+    <template v-else-if="status === 'completed' && resultUrl">
+      <view class="result-preview">
+        <image
+          class="result-image"
+          :src="resultUrl"
+          mode="aspectFit"
+          @tap="previewResult"
+        />
       </view>
-      <!-- #endif -->
-      <!-- #ifndef H5 -->
-      <view class="dialog-actions">
-        <button class="back-button" @click="$emit('back')">返回工作台</button>
-        <button class="confirm-button" @click="$emit('library')">前往作品库查看</button>
+      <text class="result-hint"
+        >轻触图片放大查看；图片链接约 1 小时后失效，请及时保存</text
+      >
+    </template>
+    <view v-else-if="status === 'canceled'" class="canceled-mark">已取消</view>
+    <template v-else>
+      <view class="progress-circle">
+        {{ progress }}<text class="progress-unit">%</text>
       </view>
-      <!-- #endif -->
+      <text class="progress-label">{{ progressLabel }}</text>
+    </template>
+    <text class="progress-note">{{ note }}</text>
+    <view v-if="showCancelAction || showRetryAction" class="progress-actions">
+      <app-flow-button
+        v-if="showCancelAction"
+        variant="danger"
+        block
+        :loading="canceling"
+        :disabled="retrying"
+        @click="$emit('cancel')"
+      >
+        {{ canceling ? "正在取消…" : "取消创作" }}
+      </app-flow-button>
+      <app-flow-button
+        v-else
+        block
+        :loading="retrying"
+        :disabled="canceling"
+        @click="$emit('retry')"
+      >
+        {{ retrying ? "正在重试…" : "重试创作" }}
+      </app-flow-button>
     </view>
-  </view>
+
+    <template #footer>
+      <app-flow-button variant="secondary" block @click="$emit('back')">
+        <!-- #ifdef H5 -->
+        <el-icon class="action-icon"><House /></el-icon>
+        <!-- #endif -->
+        返回工作台
+      </app-flow-button>
+      <app-flow-button block @click="$emit('library')">
+        <!-- #ifdef H5 -->
+        <el-icon class="action-icon"><Collection /></el-icon>
+        <!-- #endif -->
+        前往作品库查看
+      </app-flow-button>
+    </template>
+  </app-bottom-sheet>
 </template>
 
 <script setup>
 import { computed } from "vue";
+
+import { TASK_STATUS } from "@/apis/constants";
+import AppBottomSheet from "@/components/AppBottomSheet/index.vue";
+import AppFlowButton from "@/components/AppFlowButton/index.vue";
 
 // #ifdef H5
 import { Collection, House } from "@element-plus/icons-vue";
@@ -61,25 +89,61 @@ import { Collection, House } from "@element-plus/icons-vue";
  * @param note 弹窗提示。
  * @param status 任务状态，完成时切换为结果展示。
  * @param resultUrl 生成结果地址，任务完成时展示。
+ * @param canceling 是否正在提交取消请求。
+ * @param retrying 是否正在提交重试请求。
  */
 const props = defineProps({
-  title: { type: String, default: "" },
-  type: { type: String, default: "creation" },
-  progress: { type: [String, Number], default: 0 },
-  progressLabel: { type: String, default: "生成进度" },
+  title: {
+    type: String,
+    default: "",
+  },
+  type: {
+    type: String,
+    default: "creation",
+  },
+  progress: {
+    type: [String, Number],
+    default: 0,
+  },
+  progressLabel: {
+    type: String,
+    default: "生成进度",
+  },
   note: {
     type: String,
     default: "已进入云端渲染，期间离开或切换页面不影响生成，可在作品库查看。",
   },
-  status: { type: String, default: "" },
-  resultUrl: { type: String, default: "" },
+  status: {
+    type: String,
+    default: "",
+  },
+  resultUrl: {
+    type: String,
+    default: "",
+  },
+  canceling: {
+    type: Boolean,
+    default: false,
+  },
+  retrying: {
+    type: Boolean,
+    default: false,
+  },
 });
-
-defineEmits(["back", "library"]);
+defineEmits(["back", "library", "cancel", "retry"]);
 
 const dialogTitle = computed(
-  () => props.title || (props.type === "optimization" ? "淬炼重绘" : "研墨成画")
+  () =>
+    props.title || (props.type === "optimization" ? "淬炼重绘" : "研墨成画"),
 );
+
+// 进行中的任务可取消，失败的任务可重试；两者互斥
+const showCancelAction = computed(
+  () =>
+    props.status === TASK_STATUS.PENDING ||
+    props.status === TASK_STATUS.PROCESSING,
+);
+const showRetryAction = computed(() => props.status === TASK_STATUS.FAILED);
 
 // 预览生成结果大图
 const previewResult = () => {
@@ -92,48 +156,6 @@ const previewResult = () => {
 </script>
 
 <style scoped lang="scss">
-.dialog-mask {
-  position: fixed;
-  z-index: 20;
-  inset: 0;
-  display: flex;
-  align-items: flex-end;
-  background: rgba(20, 28, 27, 0.52);
-}
-
-.dialog-sheet {
-  width: 100%;
-  padding: 32rpx 28rpx;
-  padding-bottom: calc(#{24rpx} + constant(safe-area-inset-bottom));
-  padding-bottom: calc(#{24rpx} + env(safe-area-inset-bottom));
-  border-radius: 32rpx 32rpx 0 0;
-  background: $color-surface;
-  box-sizing: border-box;
-
-  /* 宽屏下与页面内容区同宽居中，避免底部弹板横跨整屏 */
-  @media (min-width: 768px) {
-    max-width: 750px;
-    margin: 0 auto;
-  }
-
-  --el-color-primary: #{$color-primary};
-  --el-border-radius-base: #{20rpx};
-  --el-font-family: #{$font-family-base};
-}
-
-.dialog-title {
-  padding-bottom: 20rpx;
-  border-bottom: 1rpx solid $color-line;
-  color: $color-ink;
-  font-size: 34rpx;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.progress-sheet {
-  text-align: center;
-}
-
 .progress-circle {
   width: 150rpx;
   height: 150rpx;
@@ -147,7 +169,7 @@ const previewResult = () => {
   @include numeric;
 }
 
-.progress-circle small {
+.progress-unit {
   font-size: 24rpx;
   font-weight: 400;
 }
@@ -165,6 +187,24 @@ const previewResult = () => {
   color: $color-muted;
   font-size: 24rpx;
   line-height: 1.6;
+}
+
+.canceled-mark {
+  width: 220rpx;
+  margin: 28rpx auto 12rpx;
+  padding: 24rpx 0;
+  border: 2rpx dashed #cfd8d3;
+  border-radius: 24rpx;
+  background: #f6f7f6;
+  color: $color-muted;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.progress-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 8rpx;
 }
 
 .result-preview {
@@ -186,60 +226,7 @@ const previewResult = () => {
   font-size: 22rpx;
 }
 
-.dialog-actions {
-  display: flex;
-  gap: 16rpx;
-
-  :deep(.el-button) {
-    flex: 1;
-    height: $tap-size;
-    margin: 0;
-    border-radius: 20rpx;
-    font-size: 24rpx;
-  }
-
-  :deep(.el-icon) {
-    margin-right: 4rpx;
-    font-size: 22rpx;
-  }
-}
-
-/* #ifndef H5 */
-.dialog-actions button {
-  flex: 1;
-  height: $tap-size;
-  margin: 0;
-  padding: 0;
-  border-radius: 20rpx;
-  font-size: 24rpx;
-  line-height: $tap-size;
-
-  &::after {
-    border: 0;
-  }
-}
-/* #endif */
-
-.back-button {
-  border: 1rpx solid $color-line;
-  background: $color-surface;
-  color: #4e665e;
-
-  &:hover {
-    border-color: #bfd8ce;
-    background: #f8faf7;
-    color: $color-primary;
-  }
-}
-
-.confirm-button {
-  border: 0;
-  background: $color-primary;
-  color: #fff;
-
-  &:hover {
-    background: #9c6e38;
-    color: #fff;
-  }
+.action-icon {
+  font-size: 22rpx;
 }
 </style>

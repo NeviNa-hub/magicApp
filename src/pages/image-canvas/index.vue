@@ -48,7 +48,8 @@
               </text>
             </view>
             <text class="cost-note">
-              提交后扣除积分，生成失败暂不退回；图片链接约 1 小时后失效。
+              提交后按提示词实时计价扣除积分，模型未产出结果时自动退回；图片链接约
+              1 小时后失效。
             </text>
           </view>
         </view>
@@ -71,6 +72,7 @@ import { onShow } from "@dcloudio/uni-app";
 import { submitImageGeneration } from "@/utils/image-generation";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
+import useCreationQuote from "@/hooks/useCreationQuote";
 import { loadPointsBalance, pointsState } from "@/stores";
 import {
   DRAFT_KEYS,
@@ -79,6 +81,7 @@ import {
 } from "@/utils/creation-draft";
 import { getErrorMessage, isApiError } from "@/utils/request";
 
+const DEFAULT_IMAGE_COST = 2;
 const options = ref({
   prompt: "",
   style: "",
@@ -92,11 +95,21 @@ const options = ref({
 const selectedRatio = ref("1:1");
 const isSubmitting = ref(false);
 
+const { quote: costQuote } = useCreationQuote({
+  getParams: () => ({
+    task_type: "image",
+    prompt: options.value.prompt,
+    style: options.value.style,
+  }),
+});
+
 const pointsText = computed(() =>
   pointsState.balance === null ? "—" : pointsState.balance,
 );
 
-const selectedCost = 2;
+const selectedCost = computed(
+  () => costQuote.value?.cost_points ?? DEFAULT_IMAGE_COST,
+);
 
 // 返回上一页修改画风
 const goBack = () => {
@@ -169,6 +182,12 @@ onShow(() => {
     return;
   }
 
+  // 历史页面需要回填构思与画风，报价和提交都依赖这两项内容
+  options.value = {
+    ...options.value,
+    prompt: draft.prompt,
+    style: draft.style,
+  };
   loadPointsBalance();
 });
 </script>

@@ -4,7 +4,7 @@ import { TASK_STATUS } from "../apis/constants.js";
 // 视频创作第一步：规制与意境配置
 export const VIDEO_CREATION_OPTIONS = {
   power: 800,
-  prompt_limit: 300,
+  prompt_limit: 800,
   default_ratio: "16:9",
   default_mode: "text",
   ratios: [
@@ -78,6 +78,7 @@ export const buildVideoTaskStatus = (record) => {
     progress: record.progress,
     progress_title: "视频创作渲染中",
     stage_label: isCompleted ? "视频创作已完成 · 可入作品库" : "云端逐帧重绘",
+    cost_points: record.costPoints ?? 0,
     estimated_time: VIDEO_RENDER_OPTIONS.estimated_time,
     note: isCompleted
       ? "视频创作已完成并归档至作品库"

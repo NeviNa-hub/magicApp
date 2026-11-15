@@ -302,18 +302,14 @@ onShow(() => {
 
 <style scoped lang="scss">
 .library-page {
-  height: 100vh;
-  overflow: hidden;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-  color: $color-ink;
+  @include page-shell;
 }
 
 .content {
-  height: calc(100vh - 214rpx - var(--status-bar-height, 0px));
-  overflow-x: hidden;
+  @include main-scroll(12rpx);
+
   padding: 28rpx 32rpx;
   padding-bottom: calc(#{24rpx} + env(safe-area-inset-bottom));
-  box-sizing: border-box;
 }
 
 .summary-row {
@@ -493,7 +489,12 @@ onShow(() => {
 @media (min-width: $breakpoint-desktop) {
   .work-list {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* 长标题默认会把栅格列撑宽，卡片允许收缩才能保证两列等宽 */
+  .work-card {
+    min-width: 0;
   }
 
   .work-actions {

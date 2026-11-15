@@ -17,9 +17,11 @@ const DEFAULT_RETRY_LIMIT = 1;
  * @param {number} defaultOptions.retryLimit 单次轮询失败后的重试次数。
  * @param {Function} defaultOptions.isCompleted 判断任务是否完成。
  * @param {Function} defaultOptions.isFailed 判断任务是否失败。
+ * @param {Function} defaultOptions.isCanceled 判断任务是否已取消。
  * @param {Function} defaultOptions.onProgress 每次拉取成功后的回调。
  * @param {Function} defaultOptions.onCompleted 任务完成时的回调。
- * @param {Function} defaultOptions.onFailed 任务失败、超时或重试耗尽时的回调。
+ * @param {Function} defaultOptions.onFailed 任务失败、超时或重试耗尽时的回调，参数为错误；任务失败时附带状态数据。
+ * @param {Function} defaultOptions.onCanceled 任务已取消时的回调。
  * @returns {{start: Function, stop: Function, isPolling: import("vue").Ref<boolean>}}
  *   轮询控制器。
  */
@@ -70,11 +72,13 @@ export default function useTaskPolling(defaultOptions = {}) {
       fetchTask,
       isCompleted,
       isFailed,
+      isCanceled,
       maxAttempts,
       retryLimit,
       onProgress,
       onCompleted,
       onFailed,
+      onCanceled,
     } = currentOptions;
 
     isRequesting = true;
@@ -98,7 +102,16 @@ export default function useTaskPolling(defaultOptions = {}) {
 
       if (isFailed?.(data)) {
         stop();
-        onFailed?.(new Error(data.error_message || data.message || "任务生成失败，请稍后重试"));
+        onFailed?.(
+          new Error(data.error_message || data.message || "任务生成失败，请稍后重试"),
+          data
+        );
+        return;
+      }
+
+      if (isCanceled?.(data)) {
+        stop();
+        onCanceled?.(data);
         return;
       }
 
@@ -147,9 +160,11 @@ export default function useTaskPolling(defaultOptions = {}) {
         : DEFAULT_RETRY_LIMIT,
       isCompleted: config.isCompleted,
       isFailed: config.isFailed,
+      isCanceled: config.isCanceled,
       onProgress: config.onProgress,
       onCompleted: config.onCompleted,
       onFailed: config.onFailed,
+      onCanceled: config.onCanceled,
     };
     attempts = 0;
     retryCount = 0;

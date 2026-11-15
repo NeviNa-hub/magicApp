@@ -1,18 +1,21 @@
 /**
  * Mock 路由：按真实接口路径返回与后端一致的 { code, message, data } 结构。
  */
-import { API_PATHS, ERROR_CODES, PAGE_DEFAULTS } from "../apis/constants.js";
+import { API_PATHS, ERROR_CODES, PAGE_DEFAULTS, TASK_STATUS } from "../apis/constants.js";
 import { ACCOUNT_OVERVIEW, MOCK_LOGIN, POINTS_INFO } from "./account.js";
-import {
-  HOME_OVERVIEW,
-  WORKBENCH_OVERVIEW,
-  buildLibraryData,
-} from "./creation.js";
+import { HOME_OVERVIEW, WORKBENCH_OVERVIEW, buildLibraryData } from "./creation.js";
 import {
   IMAGE_OPTIMIZATION_OPTIONS,
   buildOptimizationTaskStatus,
 } from "./image-optimization.js";
-import { createMockTask, readMockTask } from "./tasks.js";
+import { isPricedTaskType, quoteCreation } from "./pricing.js";
+import {
+  buildMockTaskResult,
+  cancelMockTask,
+  createMockTask,
+  readMockTask,
+  retryMockTask,
+} from "./tasks.js";
 import {
   IMAGE_CANVAS_OPTIONS,
   IMAGE_CREATION_OPTIONS,
@@ -59,19 +62,47 @@ const createTaskResponse = (type, data, requiredFields) => {
     return fail(ERROR_CODES.INVALID_PARAMS, `缺少必要参数：${missingField}`);
   }
 
+  const record = createMockTask(type, data);
+
   return ok({
-    task_id: createMockTask(type, data),
+    task_id: record.taskId,
     status: "processing",
+    cost_points: record.costPoints,
   });
+};
+
+/**
+ * 处理任务取消与重试请求，状态限制与后端保持一致。
+ * @param {string} taskId 任务标识。
+ * @param {"cancel" | "retry"} action 操作类型。
+ * @returns {Object} 接口响应。
+ */
+const resolveTaskAction = (taskId, action) => {
+  const record = readMockTask(taskId);
+
+  if (!record) {
+    return fail(ERROR_CODES.NOT_FOUND, "任务不存在或已过期");
+  }
+
+  if (action === "cancel") {
+    if (record.status === TASK_STATUS.COMPLETED || record.status === TASK_STATUS.FAILED) {
+      return fail(ERROR_CODES.CONFLICT, "任务已结束，无法取消");
+    }
+
+    return ok(buildMockTaskResult(cancelMockTask(taskId)));
+  }
+
+  if (record.status !== TASK_STATUS.FAILED) {
+    return fail(ERROR_CODES.CONFLICT, "只有创作失败的任务可以重试");
+  }
+
+  return ok(buildMockTaskResult(retryMockTask(taskId)));
 };
 
 const exactRoutes = {
   [`POST ${API_PATHS.AUTH_REGISTER}`]: (params) => {
     if (!params?.username || !params?.account || !params?.password) {
-      return fail(
-        ERROR_CODES.INVALID_PARAMS,
-        "缺少必要参数：username/account/password",
-      );
+      return fail(ERROR_CODES.INVALID_PARAMS, "缺少必要参数：username/account/password");
     }
 
     // 与真实契约一致：注册只返回用户资料，不签发令牌
@@ -102,6 +133,13 @@ const exactRoutes = {
 
     return ok(POINTS_INFO);
   },
+  [`POST ${API_PATHS.PRICING_QUOTE}`]: (params) => {
+    if (!isPricedTaskType(params?.task_type)) {
+      return fail(ERROR_CODES.INVALID_PARAMS, "缺少必要参数：task_type");
+    }
+
+    return ok(quoteCreation(params));
+  },
   [`GET ${API_PATHS.HOME_OVERVIEW}`]: (_params, scenario) => {
     if (scenario === "empty") {
       return ok({ ...HOME_OVERVIEW, creations: [] });
@@ -120,14 +158,11 @@ const exactRoutes = {
     const page = Number(params.page) || PAGE_DEFAULTS.PAGE;
     const pageSize = Math.min(
       Number(params.page_size) || PAGE_DEFAULTS.PAGE_SIZE,
-      PAGE_DEFAULTS.MAX_PAGE_SIZE,
+      PAGE_DEFAULTS.MAX_PAGE_SIZE
     );
 
     return ok(
-      buildLibraryData(
-        { ...params, page, page_size: pageSize },
-        scenario === "empty",
-      ),
+      buildLibraryData({ ...params, page, page_size: pageSize }, scenario === "empty")
     );
   },
   [`GET ${API_PATHS.IMAGE_CREATION_OPTIONS}`]: () => ok(IMAGE_CREATION_OPTIONS),
@@ -135,8 +170,7 @@ const exactRoutes = {
   [`GET ${API_PATHS.IMAGE_CANVAS_OPTIONS}`]: () => ok(IMAGE_CANVAS_OPTIONS),
   [`POST ${API_PATHS.IMAGE_TASKS}`]: (params) =>
     createTaskResponse("image", params, ["prompt", "style"]),
-  [`GET ${API_PATHS.IMAGE_OPTIMIZATION_OPTIONS}`]: () =>
-    ok(IMAGE_OPTIMIZATION_OPTIONS),
+  [`GET ${API_PATHS.IMAGE_OPTIMIZATION_OPTIONS}`]: () => ok(IMAGE_OPTIMIZATION_OPTIONS),
   [`POST ${API_PATHS.IMAGE_OPTIMIZATION_TASKS}`]: (params) =>
     createTaskResponse("optimization", params, ["image_path", "prompt"]),
   [`GET ${API_PATHS.VIDEO_CREATION_OPTIONS}`]: () => ok(VIDEO_CREATION_OPTIONS),
@@ -169,17 +203,25 @@ const taskRoutes = [
       const record = readMockTask(taskId);
       if (!record) return fail(ERROR_CODES.NOT_FOUND, "任务不存在或已过期");
       if (record.type === "image") return ok(buildImageTaskStatus(record));
-      if (record.type === "optimization")
-        return ok(buildOptimizationTaskStatus(record));
+      if (record.type === "optimization") return ok(buildOptimizationTaskStatus(record));
       if (record.type === "video") return ok(buildVideoTaskStatus(record));
       return fail(ERROR_CODES.NOT_FOUND, "任务不存在或已过期");
     },
   },
   {
+    method: "POST",
+    pattern: /^\/tasks\/([^/]+)\/cancel$/,
+    handler: (taskId) => resolveTaskAction(taskId, "cancel"),
+  },
+  {
+    method: "POST",
+    pattern: /^\/tasks\/([^/]+)\/retry$/,
+    handler: (taskId) => resolveTaskAction(taskId, "retry"),
+  },
+  {
     method: "GET",
     pattern: /^\/text-to-image\/tasks\/([^/]+)$/,
-    handler: (taskId) =>
-      resolveTaskStatus(taskId, buildImageTaskStatus, "image"),
+    handler: (taskId) => resolveTaskStatus(taskId, buildImageTaskStatus, "image"),
   },
   {
     method: "GET",
@@ -190,8 +232,7 @@ const taskRoutes = [
   {
     method: "GET",
     pattern: /^\/video\/tasks\/([^/]+)$/,
-    handler: (taskId) =>
-      resolveTaskStatus(taskId, buildVideoTaskStatus, "video"),
+    handler: (taskId) => resolveTaskStatus(taskId, buildVideoTaskStatus, "video"),
   },
 ];
 
@@ -212,7 +253,7 @@ export const resolveMock = (method, url, params = {}, scenario = "normal") => {
   }
 
   const dynamicRoute = taskRoutes.find(
-    (route) => route.method === method && route.pattern.test(url),
+    (route) => route.method === method && route.pattern.test(url)
   );
 
   if (dynamicRoute) {

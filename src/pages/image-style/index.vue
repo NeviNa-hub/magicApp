@@ -1,107 +1,105 @@
 <template>
-  <view class="style-page">
-    <app-page-header title="文字生图" />
-    <view class="step-bar">
-      <view class="step done"><i>1</i><text>落墨构想</text></view>
-      <view class="step-connector"></view>
-      <view class="step active"><i>2</i><text>甄选画风</text></view>
-    </view>
-    <view class="scroll-window">
-      <scroll-view
-        scroll-y
-        :show-scrollbar="false"
-        class="content"
-        :style="contentKeyboardStyle"
-      >
-        <view class="creation-body">
-          <view class="config-card">
-            <view class="config-title"> <em>壹 ·</em> 画面主旨 </view>
-            <view class="prompt-head">
-              <text>{{ prompt.length }} / {{ promptLimit }} 字</text>
-            </view>
-            <textarea
-              v-model="prompt"
-              :maxlength="promptLimit"
-              class="prompt-input"
-              placeholder="写下你想描绘的意象"
-            />
-            <view class="prompt-tools">
-              <button @click="polishPrompt">
-                <!-- #ifdef H5 -->
-                <el-icon class="tool-icon"><MagicStick /></el-icon>
-                <!-- #endif -->
-                灵感润色
-              </button>
-              <button @click="randomPrompt">
-                <!-- #ifdef H5 -->
-                <el-icon class="tool-icon"><RefreshLeft /></el-icon>
-                <!-- #endif -->
-                随机意象
-              </button>
-              <text @click="prompt = ''">清空</text>
-            </view>
-          </view>
+  <creation-page title="文字生图" :steps="steps">
+    <view class="flow-body">
+      <app-config-card index="壹" title="画面主旨">
+        <template #extra>
+          <text class="prompt-count">
+            {{ prompt.length }} / {{ promptLimit }} 字
+          </text>
+        </template>
+        <textarea
+          v-model="prompt"
+          :maxlength="promptLimit"
+          class="prompt-input"
+          placeholder="写下你想描绘的意象"
+        />
+        <view class="prompt-tools">
+          <button @click="polishPrompt">
+            <!-- #ifdef H5 -->
+            <el-icon class="tool-icon"><MagicStick /></el-icon>
+            <!-- #endif -->
+            灵感润色
+          </button>
+          <button @click="randomPrompt">
+            <!-- #ifdef H5 -->
+            <el-icon class="tool-icon"><RefreshLeft /></el-icon>
+            <!-- #endif -->
+            随机意象
+          </button>
+          <text @click="prompt = ''">清空</text>
+        </view>
+      </app-config-card>
 
-          <view class="config-card">
-            <view class="config-title"><em>贰 ·</em> 灵感引线</view>
-            <view class="suggestions">
-              <button
-                v-for="item in suggestions"
-                :key="item"
-                @click="appendPrompt(item)"
-              >
-                ＋ {{ item }}
-              </button>
-            </view>
-          </view>
+      <app-config-card index="贰" title="灵感引线">
+        <view class="suggestions">
+          <button
+            v-for="item in suggestions"
+            :key="item"
+            @click="appendPrompt(item)"
+          >
+            ＋ {{ item }}
+          </button>
+        </view>
+      </app-config-card>
 
-          <view class="config-card">
-            <view class="config-title"><em>叁 ·</em> 画境点睛</view>
-            <view class="tuning-grid">
-              <view class="tuning-row">
-                <text class="tuning-label">意境基调</text>
-                <text class="tuning-value">清润淡雅　墨韵沉静</text>
-              </view>
-              <view class="tuning-row">
-                <text class="tuning-label">留白比例</text>
-                <text class="tuning-value">迂阔（60%）　虚实均亭</text>
-              </view>
-            </view>
+      <app-config-card index="叁" title="画境点睛">
+        <view class="tuning-grid">
+          <view class="tuning-row">
+            <text class="tuning-label">意境基调</text>
+            <text class="tuning-value">清润淡雅　墨韵沉静</text>
+          </view>
+          <view class="tuning-row">
+            <text class="tuning-label">留白比例</text>
+            <text class="tuning-value">迂阔（60%）　虚实均亭</text>
           </view>
         </view>
-      </scroll-view>
+      </app-config-card>
     </view>
-    <view class="bottom-actions" :style="barKeyboardStyle">
-      <button class="previous" @click="goBack">上一步</button>
-      <button class="next" :disabled="isSubmitting" @click="handleSubmit">
+
+    <template #footer>
+      <app-flow-button
+        variant="secondary"
+        class="previous-button"
+        @click="goBack"
+      >
+        上一步
+      </app-flow-button>
+      <app-flow-button block :loading="isSubmitting" @click="handleSubmit">
         {{ isSubmitting ? "任务创建中…" : "开始研墨成画 →" }}
-      </button>
-    </view>
-    <confirm-generation-dialog
-      v-if="confirmVisible"
-      title="确认研墨成画"
-      :cost="generationCost"
-      :estimated-time="estimatedTime || '待定'"
-      note="确认后扣除灵感点，生成失败暂不退回；结果链接约 1 小时后失效，请及时保存。"
-      confirm-text="确认研墨成画"
-      :loading="isSubmitting"
-      @cancel="confirmVisible = false"
-      @confirm="confirmGenerate"
-    />
-    <generation-dialog
-      v-if="progressVisible"
-      title="研墨成画"
-      type="creation"
-      :status="taskStatus"
-      :progress="taskProgress"
-      :progress-label="taskStage"
-      :note="taskNote"
-      :result-url="taskResultUrl"
-      @back="uni.redirectTo({ url: '/pages/workbench/index' })"
-      @library="uni.navigateTo({ url: '/pages/library/index' })"
-    />
-    <app-bottom-nav active="creation" desktop-only />
-  </view>
+      </app-flow-button>
+    </template>
+
+    <template #overlay>
+      <confirm-generation-dialog
+        v-if="confirmVisible"
+        title="确认研墨成画"
+        :cost="generationCost"
+        :tokens="generationTokens"
+        :estimated-time="estimatedTime || '待定'"
+        note="确认后按提示词实时计价扣除灵感点，模型未产出结果时自动退回本次积分；结果链接约 1 小时后失效，请及时保存。"
+        confirm-text="确认研墨成画"
+        :loading="isSubmitting"
+        @cancel="confirmVisible = false"
+        @confirm="confirmGenerate"
+      />
+      <generation-dialog
+        v-if="progressVisible"
+        title="研墨成画"
+        type="creation"
+        :status="taskStatus"
+        :progress="taskProgress"
+        :progress-label="taskStage"
+        :note="taskNote"
+        :result-url="taskResultUrl"
+        :canceling="isCanceling"
+        :retrying="isRetrying"
+        @cancel="cancelTask"
+        @retry="retryTask"
+        @back="uni.redirectTo({ url: '/pages/workbench/index' })"
+        @library="uni.navigateTo({ url: '/pages/library/index' })"
+      />
+    </template>
+  </creation-page>
 </template>
 
 <script setup>
@@ -115,11 +113,13 @@ import { MagicStick, RefreshLeft } from "@element-plus/icons-vue";
 import { TASK_STATUS } from "@/apis/constants";
 import { getImageTaskStatus } from "@/apis/text-to-image";
 import { submitImageGeneration } from "@/utils/image-generation";
-import AppBottomNav from "@/components/AppBottomNav/index.vue";
-import AppPageHeader from "@/components/AppPageHeader/index.vue";
+import AppConfigCard from "@/components/AppConfigCard/index.vue";
+import AppFlowButton from "@/components/AppFlowButton/index.vue";
 import ConfirmGenerationDialog from "@/components/ConfirmGenerationDialog/index.vue";
+import CreationPage from "@/components/CreationPage/index.vue";
 import GenerationDialog from "@/components/GenerationDialog/index.vue";
-import useKeyboardInset from "@/hooks/useKeyboardInset";
+import useCreationQuote from "@/hooks/useCreationQuote";
+import useTaskActions from "@/hooks/useTaskActions";
 import useTaskPolling from "@/hooks/useTaskPolling";
 import { loadPointsBalance } from "@/stores";
 import {
@@ -129,10 +129,21 @@ import {
 } from "@/utils/creation-draft";
 import { appendPromptText, polishPromptText } from "@/utils/prompt";
 import { getErrorMessage, isApiError } from "@/utils/request";
+import { buildFailureNote, getTaskRetryCost } from "@/utils/task-refund";
 
+const steps = [
+  {
+    label: "落墨构想",
+    state: "done",
+  },
+  {
+    label: "甄选画风",
+    state: "active",
+  },
+];
 const selectedStyle = ref("");
 const prompt = ref("");
-const promptLimit = 500;
+const promptLimit = 400;
 const suggestions = [
   "江南烟雨",
   "宋代山水",
@@ -144,18 +155,20 @@ const polishSuffix = "画面空灵雅致，留白自然，笔触细腻";
 const randomPromptText =
   "薄雾晨光里的青绿山水，远处层峦叠嶂，近处一叶轻舟掠过溪面";
 const estimatedTime = "约 6~8 秒";
-const generationCost = 2;
+const DEFAULT_GENERATION_COST = 2;
 const TASK_STAGE_TEXT = {
   [TASK_STATUS.PENDING]: "排队等待",
   [TASK_STATUS.PROCESSING]: "气韵流转",
   [TASK_STATUS.COMPLETED]: "生成完成",
   [TASK_STATUS.FAILED]: "生成失败",
+  [TASK_STATUS.CANCELED]: "已取消创作",
 };
 const TASK_NOTE_TEXT = {
   [TASK_STATUS.PENDING]:
     "任务已创建，正在排队等待云端处理，离开页面不影响生成。",
   [TASK_STATUS.PROCESSING]: "云端研墨中，离开页面或切换画风不影响生成。",
   [TASK_STATUS.COMPLETED]: "画卷已完成，可轻触画卷放大查看或前往作品库。",
+  [TASK_STATUS.CANCELED]: "创作已取消，本次消耗的积分已退回。",
 };
 const draft = ref(readCreationDraft(DRAFT_KEYS.image) || {});
 const confirmVisible = ref(false);
@@ -166,16 +179,20 @@ const taskProgress = ref(0);
 const taskStatus = ref(TASK_STATUS.PENDING);
 const taskMessage = ref("");
 const taskResultUrl = ref("");
-const { keyboardInset } = useKeyboardInset();
+const taskRetryCost = ref(0);
 
-const contentKeyboardStyle = computed(() => ({
-  paddingBottom:
-    keyboardInset.value > 0 ? `${keyboardInset.value}px` : undefined,
-}));
+const { quote: costQuote } = useCreationQuote({
+  getParams: () => ({
+    task_type: "image",
+    prompt: prompt.value.trim(),
+    style: selectedStyle.value,
+  }),
+});
 
-const barKeyboardStyle = computed(() => ({
-  bottom: keyboardInset.value > 0 ? `${keyboardInset.value}px` : undefined,
-}));
+const generationCost = computed(
+  () => costQuote.value?.cost_points ?? DEFAULT_GENERATION_COST,
+);
+const generationTokens = computed(() => costQuote.value?.total_tokens || 0);
 
 const taskStage = computed(
   () => TASK_STAGE_TEXT[taskStatus.value] || "任务已创建",
@@ -191,12 +208,13 @@ const taskNote = computed(() => {
   );
 });
 
-const { start: startPolling } = useTaskPolling({
+const { start: startPolling, stop: stopPolling } = useTaskPolling({
   fetchTask: () => getImageTaskStatus({ taskId: taskId.value }),
   interval: 3000,
   maxAttempts: 60,
   isCompleted: (data) => data.status === TASK_STATUS.COMPLETED,
   isFailed: (data) => data.status === TASK_STATUS.FAILED,
+  isCanceled: (data) => data.status === TASK_STATUS.CANCELED,
   onProgress: (data) => {
     taskStatus.value = data.status || TASK_STATUS.PROCESSING;
     taskProgress.value = Number(data.progress) || 0;
@@ -210,19 +228,35 @@ const { start: startPolling } = useTaskPolling({
     taskProgress.value = 100;
     taskResultUrl.value = data.result_urls?.[0] || "";
   },
-  onFailed: (error) => {
+  onFailed: (error, data) => {
     const isRequestError = isApiError(error);
 
     taskStatus.value = TASK_STATUS.FAILED;
+    taskRetryCost.value = getTaskRetryCost(data);
     taskMessage.value = isRequestError
       ? "任务状态查询失败，请稍后在作品库确认结果。"
-      : getErrorMessage(error, "生成失败，请稍后重试。");
+      : buildFailureNote(
+          data,
+          getErrorMessage(error, "生成失败，请稍后重试。"),
+        );
 
     if (!isRequestError) {
-      uni.showToast({ title: taskMessage.value, icon: "none" });
+      uni.showToast({
+        title: data?.error_message || taskMessage.value,
+        icon: "none",
+      });
     }
   },
+  onCanceled: () => applyCanceledState(),
 });
+
+// 任务取消后停止轮询，弹窗切换为已取消状态
+const applyCanceledState = () => {
+  stopPolling();
+  taskStatus.value = TASK_STATUS.CANCELED;
+  taskResultUrl.value = "";
+  taskMessage.value = "";
+};
 
 // 在现有主旨后追加润色意象，空主旨时使用默认起笔句式
 const polishPrompt = () => {
@@ -247,9 +281,14 @@ const appendPrompt = (value) => {
   prompt.value = appendPromptText(prompt.value, value);
 };
 
-// 返回上一页重新构思
+// 返回上一页重新构思；页面栈为空时（如 H5 刷新后直达）回到构思页
 const goBack = () => {
-  uni.navigateBack();
+  if (getCurrentPages().length > 1) {
+    uni.navigateBack();
+    return;
+  }
+
+  uni.redirectTo({ url: "/pages/image-creation/index" });
 };
 
 // 校验构思内容后弹出生成确认
@@ -277,8 +316,16 @@ const startTaskPolling = () => {
   taskStatus.value = TASK_STATUS.PENDING;
   taskMessage.value = "";
   taskResultUrl.value = "";
+  taskRetryCost.value = 0;
   startPolling();
 };
+
+const { cancelTask, retryTask, isCanceling, isRetrying } = useTaskActions({
+  getTaskId: () => taskId.value,
+  getRetryCost: () => taskRetryCost.value,
+  onCanceled: () => applyCanceledState(),
+  onRetried: () => startTaskPolling(),
+});
 
 /**
  * 确认生成后创建文字生图任务。
@@ -346,166 +393,23 @@ onShow(() => {
 </script>
 
 <style scoped lang="scss">
-.style-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-  /* 为固定底栏预留高度，避免滚动窗下缘被底栏遮挡 */
-  padding-bottom: calc(132rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(132rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-  color: $color-ink;
+.flow-body {
+  @include flow-body(3);
 }
 
-.app-page-header,
-.step-bar {
-  flex: none;
-}
-
-/* 滚动窗：占据页头与底栏之间的全部剩余高度，边缘渐隐弱化切割感 */
-.scroll-window {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-
-  &::before,
-  &::after {
-    content: "";
-    position: absolute;
-    right: 0;
-    left: 0;
-    z-index: 2;
-    height: 28rpx;
-    pointer-events: none;
-  }
-
-  &::before {
-    top: 0;
-    background: linear-gradient(180deg, #fff3e0, rgba(255, 243, 224, 0));
-  }
-
-  &::after {
-    bottom: 0;
-    background: linear-gradient(0deg, #fffdfb, rgba(255, 253, 251, 0));
-  }
-}
-
-.step-bar {
-  height: 82rpx;
-  margin: 16rpx 32rpx 0;
-  padding: 8rpx;
-  display: flex;
-  align-items: center;
-  border: 1rpx solid rgba(63, 102, 86, 0.12);
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 8rpx 22rpx rgba(19, 76, 68, 0.06);
-}
-
-.step {
-  flex: 1;
-  padding: 12rpx 0;
-  border-radius: 16rpx;
-  color: $color-muted;
-  text-align: center;
-  font-size: 24rpx;
-  white-space: nowrap;
-}
-
-.step i {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 8rpx;
-  border-radius: 50%;
-  background: #dfdfd5;
-  color: $color-muted;
-  font-style: normal;
-  font-size: 22rpx;
-}
-
-.step-connector {
-  flex: 1;
-  height: 2rpx;
-  margin: 0 16rpx;
-  background: linear-gradient(90deg, #8a6840, #dfdfd5);
-}
-
-.step.done {
-  color: #8a6840;
-
-  i {
-    background: #f7edde;
-    color: $color-primary;
-  }
-}
-
-.step.active {
-  background: $color-primary;
-  color: #fff;
-  font-weight: 700;
-
-  i {
-    /* 徽章底色与步骤底色一致时改为半透明白底，避免圆形徽章融进背景 */
-    background: rgba(255, 255, 255, 0.24);
-    color: #fff;
-  }
-}
-
-.content {
-  height: 100%;
-  overflow-x: hidden;
-  padding: 0 32rpx;
-  box-sizing: border-box;
-}
-
-.creation-body {
-  /* 呼吸边距放在滚动内容内部，滚动到顶/底时卡片不被贴边硬切 */
-  padding: 8rpx 0 48rpx;
-}
-
-/* 卡片与区块标题：与构思页统一样式 */
-.config-card {
-  margin-top: 28rpx;
-  padding: 28rpx;
-  border-radius: 24rpx;
-  background: $color-surface;
-  box-shadow: 0 10rpx 30rpx rgba(95, 133, 117, 0.04);
-}
-
-.config-card:first-child {
-  margin-top: 0;
-}
-
-.config-title {
-  padding-bottom: 28rpx;
-  color: #8a6840;
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
-.config-title em {
-  color: #d9be9b;
-}
-
-.prompt-head {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
+.prompt-count {
+  flex-shrink: 0;
   color: $color-muted;
   font-size: 24rpx;
+  font-weight: 400;
 }
 
 .prompt-input {
   width: 100%;
   height: 250rpx;
-  margin-top: 12rpx;
   font-size: 28rpx;
   line-height: 1.6;
+  box-sizing: border-box;
 }
 
 .prompt-tools {
@@ -525,7 +429,7 @@ onShow(() => {
   border: 1rpx solid $color-line;
   border-radius: 12rpx;
   background: $color-surface;
-  color: #8a6840;
+  color: $color-primary-deep;
   font-size: 24rpx;
   line-height: 1;
 }
@@ -576,76 +480,15 @@ onShow(() => {
   font-size: 24rpx;
 }
 
-/* ============================================================
- * 桌面 H5 适配：1200px 以上三张配置卡三列并排、调参行双列
- * ============================================================ */
+.previous-button {
+  width: 150rpx;
+  flex-shrink: 0;
+}
+
 @media (min-width: $breakpoint-desktop) {
-  .creation-body {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24rpx;
-    align-items: start;
-  }
-
-  .config-card {
-    margin-top: 0;
-  }
-
-  .config-card:first-child {
-    margin-top: 0;
-  }
-
-  .tuning-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    column-gap: 0;
-  }
-
   .tuning-row {
     border-top: 0;
     flex-wrap: wrap;
   }
-}
-
-.bottom-actions {
-  @include action-bar;
-  display: flex;
-  gap: 16rpx;
-}
-
-.bottom-actions button {
-  /* uni-app button 默认带内边距且文本不居中，改为 flex 居中并清掉内边距 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: $tap-size;
-  padding: 0;
-  border-radius: 16rpx;
-  font-size: 28rpx;
-  line-height: 1;
-}
-
-.bottom-actions button:after {
-  border: 0;
-}
-
-.previous {
-  width: 150rpx;
-  flex-shrink: 0;
-  border: 1rpx solid $color-line;
-  background: $color-surface;
-  color: #4e665e;
-}
-
-.next {
-  flex: 1;
-  border: 0;
-  background: $color-primary;
-  color: #fff;
-  font-weight: 700;
-}
-
-.bottom-actions button[disabled] {
-  opacity: 0.55;
 }
 </style>

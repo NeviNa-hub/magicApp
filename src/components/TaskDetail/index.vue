@@ -3,7 +3,10 @@
     <app-page-header title="作品详情" />
     <scroll-view scroll-y :show-scrollbar="false" class="detail-content">
       <view class="detail-body">
-        <view class="detail-card">
+        <view
+          class="detail-card"
+          :class="{ 'has-result': isCompleted && resultUrl }"
+        >
           <view class="detail-head">
             <view class="detail-title-group">
               <text class="detail-heading">{{ typeConfig.progressTitle }}</text>
@@ -11,7 +14,7 @@
                 {{ statusTag.text }}
               </text>
             </view>
-            <text class="detail-cost">消耗 {{ typeConfig.cost }} 积分</text>
+            <text class="detail-cost">{{ costText }}</text>
           </view>
           <text v-if="title" class="detail-work">{{ title }}</text>
           <template v-if="isCompleted && resultUrl">
@@ -33,7 +36,7 @@
           <!-- 进度中展示进度环，任务结束后展示状态标签与提示 -->
           <template v-else-if="!isFinished">
             <view class="progress-ring">
-              <text>{{ progress }}<small>%</small></text>
+              <text> {{ progress }}<text class="progress-unit">%</text> </text>
               <label>{{ progressLabel }}</label>
             </view>
             <view class="progress-track"
@@ -41,14 +44,36 @@
             ></view>
           </template>
           <view v-if="tip" class="detail-tip">{{ tip }}</view>
+          <view v-if="canCancel" class="detail-task-action">
+            <app-flow-button
+              variant="danger"
+              block
+              :loading="isCanceling"
+              @click="cancelTask"
+            >
+              {{ isCanceling ? "正在取消…" : "取消创作" }}
+            </app-flow-button>
+          </view>
+          <view v-else-if="isFailed" class="detail-task-action">
+            <app-flow-button block :loading="isRetrying" @click="retryTask">
+              {{ retryActionText }}
+            </app-flow-button>
+          </view>
         </view>
       </view>
     </scroll-view>
     <view class="detail-actions">
-      <button class="primary-action" @tap="handleLibraryAction">
+      <app-flow-button block @click="handleLibraryAction">
         {{ libraryActionText }}
-      </button>
-      <button class="secondary-action" @tap="goWorkbench">返回工作台</button>
+      </app-flow-button>
+      <app-flow-button
+        variant="secondary"
+        block
+        class="secondary-action"
+        @click="goWorkbench"
+      >
+        返回工作台
+      </app-flow-button>
     </view>
     <app-bottom-nav active="works" desktop-only />
   </view>
@@ -62,21 +87,41 @@ import { getImageOptimizationTaskStatus } from "@/apis/image-optimization";
 import { getImageTaskStatus } from "@/apis/text-to-image";
 import { getVideoTaskStatus } from "@/apis/video-creation";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
+import AppFlowButton from "@/components/AppFlowButton/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
+import useTaskActions from "@/hooks/useTaskActions";
 import useTaskPolling from "@/hooks/useTaskPolling";
 import { getErrorMessage, isApiError } from "@/utils/request";
+import {
+  buildFailureNote,
+  getTaskRefundPoints,
+  getTaskRetryCost,
+} from "@/utils/task-refund";
 
 /**
+ * 任务详情组件。
  * @property {string} taskId 任务公开标识，用于查询进度与结果。
  * @property {string} type 任务类型：image、optimization 或 video。
  * @property {string} title 作品标题，为空时不展示。
  * @property {"creation" | "library"} from 入口来源，决定作品库按钮的文案与返回方式。
  */
 const props = defineProps({
-  taskId: { type: String, default: "" },
-  type: { type: String, default: "image" },
-  title: { type: String, default: "" },
-  from: { type: String, default: "creation" },
+  taskId: {
+    type: String,
+    default: "",
+  },
+  type: {
+    type: String,
+    default: "image",
+  },
+  title: {
+    type: String,
+    default: "",
+  },
+  from: {
+    type: String,
+    default: "creation",
+  },
 });
 
 const TYPE_CONFIGS = {
@@ -104,6 +149,7 @@ const STATUS_TAGS = {
   [TASK_STATUS.PROCESSING]: { text: "创作中", className: "is-processing" },
   [TASK_STATUS.COMPLETED]: { text: "创作完成", className: "is-completed" },
   [TASK_STATUS.FAILED]: { text: "创作失败", className: "is-failed" },
+  [TASK_STATUS.CANCELED]: { text: "已取消", className: "is-canceled" },
 };
 const TASK_FETCHERS = {
   image: getImageTaskStatus,
@@ -120,29 +166,50 @@ const status = ref(TASK_STATUS.PENDING);
 const progress = ref(0);
 const resultUrl = ref("");
 const failureMessage = ref("");
+const costPoints = ref(null);
+const refundPoints = ref(0);
+const retryCostPoints = ref(0);
 
 const typeConfig = computed(() => TYPE_CONFIGS[currentType.value]);
+const displayCost = computed(() => costPoints.value ?? typeConfig.value.cost);
 const statusTag = computed(
   () => STATUS_TAGS[status.value] || STATUS_TAGS[TASK_STATUS.PENDING],
 );
 const isCompleted = computed(() => status.value === TASK_STATUS.COMPLETED);
+const isFailed = computed(() => status.value === TASK_STATUS.FAILED);
+const isCanceled = computed(() => status.value === TASK_STATUS.CANCELED);
+const canCancel = computed(
+  () =>
+    status.value === TASK_STATUS.PENDING ||
+    status.value === TASK_STATUS.PROCESSING,
+);
 const isFinished = computed(
-  () => isCompleted.value || status.value === TASK_STATUS.FAILED,
+  () => isCompleted.value || isFailed.value || isCanceled.value,
 );
 const progressLabel = computed(() => {
   if (isCompleted.value) {
     return "生成完成";
   }
 
-  if (status.value === TASK_STATUS.FAILED) {
+  if (isFailed.value) {
     return "生成失败";
+  }
+
+  if (isCanceled.value) {
+    return "已取消创作";
   }
 
   return typeConfig.value.progressLabel;
 });
 const tip = computed(() => {
-  if (status.value === TASK_STATUS.FAILED) {
+  if (isFailed.value) {
     return failureMessage.value || "任务处理失败，请返回重新尝试。";
+  }
+
+  if (isCanceled.value) {
+    return refundPoints.value > 0
+      ? `创作已取消，本次消耗的 ${refundPoints.value} 积分已退回。`
+      : "创作已取消。";
   }
 
   if (isFinished.value) {
@@ -151,29 +218,74 @@ const tip = computed(() => {
 
   return "已进入云端处理，离开页面不影响任务进度。";
 });
+const retryActionText = computed(() => {
+  if (isRetrying.value) {
+    return "正在重试…";
+  }
+
+  return retryCostPoints.value > 0
+    ? `重试创作（扣 ${retryCostPoints.value} 积分）`
+    : "重试创作";
+});
+// 失败或取消且已退款时展示退回金额，重试后重新扣费则恢复为消耗金额
+const costText = computed(() => {
+  if ((isFailed.value || isCanceled.value) && refundPoints.value > 0) {
+    return `已退回 ${refundPoints.value} 积分`;
+  }
+
+  return `消耗 ${displayCost.value} 积分`;
+});
 const libraryActionText = computed(() =>
   props.from === "library" ? "返回作品库" : "前往作品库查看进度",
 );
 
-// 任务查询接口统一返回任务类型，据此纠正入口未传或传错的类型
+/**
+ * 任务查询接口统一返回任务类型，据此纠正入口未传或传错的类型。
+ * @param {Object} data 任务状态数据。
+ * @returns {void}
+ */
 const syncTaskType = (data) => {
   if (Object.prototype.hasOwnProperty.call(TYPE_CONFIGS, data.task_type)) {
     currentType.value = data.task_type;
   }
 };
 
+/**
+ * 状态接口返回实际扣费，优先展示；旧任务缺少该字段时沿用类型默认值。
+ * @param {Object} data 任务状态数据。
+ * @returns {void}
+ */
+const syncTaskCost = (data) => {
+  if (typeof data.cost_points === "number") {
+    costPoints.value = data.cost_points;
+  }
+};
+
+/**
+ * 同步退款金额与重试费用，供取消提示和重试按钮展示。
+ * @param {Object} data 任务状态数据。
+ * @returns {void}
+ */
+const syncTaskBilling = (data) => {
+  refundPoints.value = getTaskRefundPoints(data);
+  retryCostPoints.value = getTaskRetryCost(data);
+};
+
 // 按任务类型选择状态查询接口，三类任务共用同一个查询地址
 const fetchTaskStatus = () =>
   TASK_FETCHERS[currentType.value]({ taskId: props.taskId });
 
-const { start: startPolling } = useTaskPolling({
+const { start: startPolling, stop: stopPolling } = useTaskPolling({
   fetchTask: fetchTaskStatus,
   interval: 3000,
   maxAttempts: 60,
   isCompleted: (data) => data.status === TASK_STATUS.COMPLETED,
   isFailed: (data) => data.status === TASK_STATUS.FAILED,
+  isCanceled: (data) => data.status === TASK_STATUS.CANCELED,
   onProgress: (data) => {
     syncTaskType(data);
+    syncTaskCost(data);
+    syncTaskBilling(data);
     status.value = data.status || TASK_STATUS.PROCESSING;
     progress.value = Number(data.progress) || 0;
 
@@ -183,21 +295,66 @@ const { start: startPolling } = useTaskPolling({
   },
   onCompleted: (data) => {
     syncTaskType(data);
+    syncTaskCost(data);
+    syncTaskBilling(data);
     status.value = TASK_STATUS.COMPLETED;
     progress.value = 100;
     resultUrl.value = data.result_urls?.[0] || "";
   },
-  onFailed: (error) => {
+  onFailed: (error, data) => {
     const isRequestError = isApiError(error);
+
+    if (data) {
+      syncTaskType(data);
+      syncTaskCost(data);
+      syncTaskBilling(data);
+    }
 
     status.value = TASK_STATUS.FAILED;
     failureMessage.value = isRequestError
       ? "任务状态查询失败，请稍后在作品库确认结果。"
-      : getErrorMessage(error, "任务进度获取失败，请稍后重试");
+      : buildFailureNote(
+          data,
+          getErrorMessage(error, "任务进度获取失败，请稍后重试"),
+        );
 
     if (!isRequestError) {
-      uni.showToast({ title: failureMessage.value, icon: "none" });
+      uni.showToast({
+        title: data?.error_message || failureMessage.value,
+        icon: "none",
+      });
     }
+  },
+  onCanceled: (data) => applyCanceledState(data),
+});
+
+/**
+ * 取消成功后停止轮询并展示已取消状态。
+ * @param {Object} [data] 取消接口返回的任务状态。
+ * @returns {void}
+ */
+const applyCanceledState = (data = {}) => {
+  stopPolling();
+  syncTaskCost(data);
+  syncTaskBilling(data);
+  status.value = TASK_STATUS.CANCELED;
+  progress.value = Number(data.progress) || progress.value;
+  resultUrl.value = "";
+  failureMessage.value = "";
+};
+
+const { cancelTask, retryTask, isCanceling, isRetrying } = useTaskActions({
+  getTaskId: () => props.taskId,
+  getRetryCost: () => retryCostPoints.value,
+  onCanceled: (data) => applyCanceledState(data),
+  onRetried: (data) => {
+    syncTaskCost(data);
+    syncTaskBilling(data);
+    status.value = TASK_STATUS.PENDING;
+    progress.value = Number(data?.progress) || 0;
+    resultUrl.value = "";
+    failureMessage.value = "";
+    startPolling();
   },
 });
 
@@ -242,10 +399,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .task-detail {
-  height: 100vh;
-  overflow: hidden;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-  color: $color-ink;
+  @include page-shell;
 }
 
 .detail-content {
@@ -317,6 +471,11 @@ onMounted(() => {
     background: #fdeeee;
     color: $color-danger;
   }
+
+  &.is-canceled {
+    background: #f1f2f1;
+    color: $color-muted;
+  }
 }
 
 .detail-cost {
@@ -359,7 +518,7 @@ onMounted(() => {
   @include numeric;
 }
 
-.progress-ring text small {
+.progress-unit {
   color: $color-primary;
   font-size: 26rpx;
 }
@@ -420,10 +579,29 @@ onMounted(() => {
   text-align: center;
 }
 
+/* 进度下方的取消/重试入口，与底部固定操作栏区分 */
+.detail-task-action {
+  margin-top: 24rpx;
+}
+
+.detail-task-action button {
+  width: 100%;
+}
+
+/* 底部固定操作栏须在桌面覆盖规则之前声明，保证样式按预期生效 */
+.detail-actions {
+  @include action-bar;
+}
+
+.secondary-action {
+  margin-top: 16rpx;
+}
+
 /* ============================================================
  * 桌面 H5 适配：卡片与操作栏使用居中窄栏，页头沿用全局左右贴边布局
  * ============================================================ */
 @media (min-width: $breakpoint-desktop) {
+  /* 内容区高度固定为页头与操作栏之间，卡片超出时收缩而不是整页滚动 */
   .detail-content {
     max-width: 760px;
     margin: 0 auto;
@@ -431,9 +609,33 @@ onMounted(() => {
     padding-bottom: calc(120px + env(safe-area-inset-bottom));
   }
 
+  /* scroll-view 内部内容层撑满可视高度，供卡片按剩余空间计算图片高度 */
+  .detail-content :deep(.uni-scroll-view-content) {
+    height: 100%;
+  }
+
+  .detail-body {
+    height: 100%;
+    margin: 0;
+  }
+
   .detail-card {
     padding: 28px 32px 32px;
     border-radius: 16px;
+  }
+
+  .detail-card.has-result {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+    box-sizing: border-box;
+  }
+
+  .detail-card.has-result .detail-head,
+  .detail-card.has-result .detail-work,
+  .detail-card.has-result .result-hint {
+    flex-shrink: 0;
   }
 
   .detail-heading {
@@ -466,7 +668,7 @@ onMounted(() => {
     font-size: 40px;
   }
 
-  .progress-ring text small {
+  .progress-unit {
     font-size: 16px;
   }
 
@@ -480,17 +682,21 @@ onMounted(() => {
     margin-top: 32px;
   }
 
-  /* 结果图按原比例居中留边，容器不再整栏宽高比失衡 */
+  /* 结果图按原比例居中留边，容器不再整栏宽高比失衡；高度不足时先压缩图片 */
   .result-image {
+    flex: 0 1 460px;
     width: min(100%, 560px);
-    height: 460px;
+    min-height: 0;
+    height: auto;
     margin: 24px auto 0;
     border-radius: 12px;
   }
 
   .result-video {
+    flex: 0 1 420px;
     width: min(100%, 640px);
-    height: 420px;
+    min-height: 0;
+    height: auto;
     margin: 24px auto 0;
     border-radius: 12px;
   }
@@ -506,6 +712,15 @@ onMounted(() => {
     font-size: 13px;
   }
 
+  .detail-task-action {
+    margin-top: 16px;
+  }
+
+  .detail-task-action button {
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
   .detail-actions {
     display: flex;
     gap: 12px;
@@ -515,47 +730,10 @@ onMounted(() => {
 
   .detail-actions button {
     max-width: 320px;
-    height: 44px;
-    border-radius: 12px;
-    font-size: 15px;
   }
 
   .detail-actions .secondary-action {
     margin-top: 0;
   }
-}
-
-.detail-actions {
-  @include action-bar;
-}
-
-.detail-actions button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: $tap-size;
-  padding: 0;
-  border-radius: 16rpx;
-  font-size: 28rpx;
-  line-height: 1;
-}
-
-.detail-actions button::after {
-  border: 0;
-}
-
-.primary-action {
-  border: 0;
-  background: $color-primary;
-  color: #fff;
-  font-weight: 700;
-}
-
-.secondary-action {
-  margin-top: 16rpx;
-  border: 1rpx solid $color-line;
-  background: $color-surface;
-  color: #4e665e;
 }
 </style>

@@ -1,138 +1,123 @@
 <template>
-  <!-- #ifdef H5 -->
-  <view class="video-render-page">
-    <app-page-header title="视频创作" />
-    <view class="step-bar">
-      <view class="step done" @click="goPreviousStep">
-        <i>1</i><text>规制与意境</text>
-      </view>
-      <view class="step-connector"></view>
-      <view class="step active"><i>2</i><text>画质与渲染</text></view>
-    </view>
-    <view class="scroll-window">
-      <scroll-view scroll-y :show-scrollbar="false" class="content">
-        <view class="render-form">
-          <view class="config-card">
-            <view class="config-title"><em>壹 ·</em> 动卷预览</view>
-            <view class="preview-body">
-              <view class="preview-thumb">
-                <app-image
-                  class="preview-image"
-                  :src="previewSource"
-                  mode="aspectFill"
-                />
-                <text class="preview-badge">影片</text>
-              </view>
-              <view class="preview-info">
-                <view class="preview-head">
-                  <text class="preview-title">{{
-                    renderConfig.previewTitle
-                  }}</text>
-                  <text class="preview-state">已立意</text>
-                </view>
-                <view class="preview-tags">
-                  <text class="preview-tag">{{ draft.ratioName }}</text>
-                  <text class="preview-tag is-accent">
-                    {{ renderConfig.cameraMove }}
-                  </text>
-                </view>
-                <text class="preview-desc">“{{ promptText }}”</text>
-              </view>
+  <creation-page title="视频创作" :steps="steps" @step-click="goPreviousStep">
+    <view class="flow-body">
+      <app-config-card index="壹" title="动卷预览">
+        <view class="preview-body">
+          <view class="preview-thumb">
+            <app-image
+              class="preview-image"
+              :src="previewSource"
+              mode="aspectFill"
+            />
+            <text class="preview-badge">影片</text>
+          </view>
+          <view class="preview-info">
+            <view class="preview-head">
+              <text class="preview-title">{{ renderConfig.previewTitle }}</text>
+              <text class="preview-state">已立意</text>
+            </view>
+            <view class="preview-tags">
+              <text class="preview-tag">{{ draft.ratioName }}</text>
+              <text class="preview-tag is-accent">
+                {{ renderConfig.cameraMove }}
+              </text>
+            </view>
+            <text class="preview-desc">“{{ promptText }}”</text>
+          </view>
+        </view>
+      </app-config-card>
+
+      <app-config-card index="贰" title="渲染资源结算">
+        <template #extra>
+          <button class="boost-button" @click="showBoostTip">
+            <!-- #ifdef H5 -->
+            <el-icon><Lightning /></el-icon>
+            <!-- #endif -->
+            尊享加速通道
+          </button>
+        </template>
+        <view class="resource-grid">
+          <view class="resource-item">
+            <text class="resource-label">本次消耗</text>
+            <view class="resource-value">
+              {{ renderCost }}
+              <text class="resource-unit">灵感点</text>
             </view>
           </view>
-
-          <view class="config-card">
-            <view class="config-title resource-title">
-              <view><em>贰 ·</em> 渲染资源结算</view>
-              <el-button class="boost-button" @click="showBoostTip">
-                <el-icon><Lightning /></el-icon>
-                尊享加速通道
-              </el-button>
+          <view class="resource-item">
+            <text class="resource-label">当前可用</text>
+            <view class="resource-value">
+              {{ renderConfig.power }}
+              <text class="resource-unit">点</text>
             </view>
-            <view class="resource-grid">
-              <view class="resource-item">
-                <text class="resource-label">本次消耗</text>
-                <view class="resource-value">
-                  {{ renderConfig.cost }}
-                  <text class="resource-unit">灵感点</text>
-                </view>
-              </view>
-              <view class="resource-item">
-                <text class="resource-label">当前可用</text>
-                <view class="resource-value">
-                  {{ renderConfig.power }}
-                  <text class="resource-unit">点</text>
-                </view>
-              </view>
-              <view class="resource-item">
-                <text class="resource-label">渲染预估</text>
-                <view class="resource-value">
-                  {{ renderConfig.estimatedTime }}
-                </view>
-              </view>
+          </view>
+          <view class="resource-item">
+            <text class="resource-label">渲染预估</text>
+            <view class="resource-value">
+              {{ renderConfig.estimatedTime }}
             </view>
           </view>
         </view>
-      </scroll-view>
+      </app-config-card>
     </view>
 
-    <view class="bottom-bar">
-      <el-button
+    <template #footer>
+      <app-flow-button
+        variant="secondary"
         class="previous-button"
         :disabled="isSubmitting"
         @click="goPreviousStep"
       >
-        <el-icon><ArrowLeft /></el-icon>
+        <!-- #ifdef H5 -->
+        <el-icon class="button-icon"><ArrowLeft /></el-icon>
+        <!-- #endif -->
         上一步
-      </el-button>
-      <el-button
-        class="render-button"
-        :loading="isSubmitting"
-        :disabled="isSubmitting"
-        @click="handleRender"
-      >
-        <el-icon v-if="!isSubmitting"><VideoPlay /></el-icon>
+      </app-flow-button>
+      <app-flow-button block :loading="isSubmitting" @click="handleRender">
+        <!-- #ifdef H5 -->
+        <el-icon v-if="!isSubmitting" class="button-icon">
+          <VideoPlay />
+        </el-icon>
+        <!-- #endif -->
         挥毫渲染动卷
-        <el-icon v-if="!isSubmitting" class="render-arrow">
+        <!-- #ifdef H5 -->
+        <el-icon v-if="!isSubmitting" class="button-icon">
           <ArrowRight />
         </el-icon>
-      </el-button>
-    </view>
+        <!-- #endif -->
+      </app-flow-button>
+    </template>
 
-    <confirm-generation-dialog
-      v-if="confirmVisible"
-      title="确认挥毫渲染动卷"
-      :cost="renderConfig.cost"
-      :estimated-time="renderConfig.estimatedTime"
-      note="提交后扣除 5 积分，生成失败暂不退款；视频链接可能过期，请及时保存。"
-      confirm-text="确认开始渲染"
-      @cancel="confirmVisible = false"
-      @confirm="confirmRender"
-    />
-    <generation-dialog
-      v-if="progressVisible"
-      title="动卷渲染中"
-      type="video"
-      :status="taskStatus"
-      :result-url="taskResultUrl"
-      :progress="taskProgress"
-      :progress-label="taskStage"
-      :note="taskNote"
-      @back="goWorkbench"
-      @library="goLibrary"
-    />
-    <app-bottom-nav active="creation" desktop-only />
-  </view>
-  <!-- #endif -->
-
-  <!-- #ifndef H5 -->
-  <view class="platform-unavailable">
-    <app-page-header title="视频创作" />
-    <text class="platform-tip">
-      视频创作依赖 Element Plus，请使用 H5 端体验完整交互。
-    </text>
-  </view>
-  <!-- #endif -->
+    <template #overlay>
+      <confirm-generation-dialog
+        v-if="confirmVisible"
+        title="确认挥毫渲染动卷"
+        :cost="renderCost"
+        :tokens="renderTokens"
+        :estimated-time="renderConfig.estimatedTime"
+        :note="confirmNote"
+        confirm-text="确认开始渲染"
+        @cancel="confirmVisible = false"
+        @confirm="confirmRender"
+      />
+      <generation-dialog
+        v-if="progressVisible"
+        title="动卷渲染中"
+        type="video"
+        :status="taskStatus"
+        :result-url="taskResultUrl"
+        :progress="taskProgress"
+        :progress-label="taskStage"
+        :note="taskNote"
+        :canceling="isCanceling"
+        :retrying="isRetrying"
+        @cancel="cancelTask"
+        @retry="retryTask"
+        @back="goWorkbench"
+        @library="goLibrary"
+      />
+    </template>
+  </creation-page>
 </template>
 
 <script setup>
@@ -151,21 +136,33 @@ import {
 import { TASK_STATUS } from "@/apis/constants";
 import { getVideoTaskStatus } from "@/apis/video-creation";
 import previewFallback from "@/assets/theme/theme-videos-1.jpg";
-import AppBottomNav from "@/components/AppBottomNav/index.vue";
+import AppConfigCard from "@/components/AppConfigCard/index.vue";
+import AppFlowButton from "@/components/AppFlowButton/index.vue";
 import AppImage from "@/components/AppImage/index.vue";
-import AppPageHeader from "@/components/AppPageHeader/index.vue";
 import ConfirmGenerationDialog from "@/components/ConfirmGenerationDialog/index.vue";
+import CreationPage from "@/components/CreationPage/index.vue";
 import GenerationDialog from "@/components/GenerationDialog/index.vue";
+import useCreationQuote from "@/hooks/useCreationQuote";
+import useTaskActions from "@/hooks/useTaskActions";
 import useTaskPolling from "@/hooks/useTaskPolling";
 import { loadPointsBalance } from "@/stores";
 import { DRAFT_KEYS, readCreationDraft } from "@/utils/creation-draft";
-import { getErrorMessage } from "@/utils/request";
+import { getErrorMessage, isApiError } from "@/utils/request";
+import {
+  buildFailureNote,
+  getTaskRefundPoints,
+  getTaskRetryCost,
+} from "@/utils/task-refund";
 import { submitVideoGeneration } from "@/utils/video-generation";
 
+const steps = [
+  { label: "规制与意境", state: "done", clickable: true },
+  { label: "画质与渲染", state: "active" },
+];
 const draft = ref({ ratioName: "", prompt: "", imagePath: "" });
+const DEFAULT_RENDER_COST = 5;
 const renderConfig = reactive({
   power: 800,
-  cost: 5,
   estimatedTime: "约 18 秒",
   previewTitle: "《江雪孤舟 · 动态长卷》",
   cameraMove: "平缓推镜",
@@ -178,6 +175,23 @@ const taskProgress = ref(0);
 const taskStatus = ref(TASK_STATUS.PENDING);
 const taskResultUrl = ref("");
 const taskStatusData = ref(null);
+const taskRetryCost = ref(0);
+
+const { quote: costQuote } = useCreationQuote({
+  getParams: () => ({
+    task_type: "video",
+    prompt: draft.value.prompt,
+  }),
+});
+
+const renderCost = computed(
+  () => costQuote.value?.cost_points ?? DEFAULT_RENDER_COST,
+);
+const renderTokens = computed(() => costQuote.value?.total_tokens || 0);
+const confirmNote = computed(
+  () =>
+    `提交后扣除 ${renderCost.value} 积分，模型未产出结果时自动退回；视频链接可能过期，请及时保存。`,
+);
 
 // 作品库携带任务标识重进时为 true，跳过规制草稿校验
 let isTaskEntry = false;
@@ -194,12 +208,13 @@ const taskNote = computed(
     "动卷已进入云端渲染池，退出或锁屏均不影响进度，完成后自动归档至作品库。",
 );
 
-const { start: startPolling } = useTaskPolling({
+const { start: startPolling, stop: stopPolling } = useTaskPolling({
   fetchTask: () => getVideoTaskStatus({ taskId: taskId.value }),
   interval: 3000,
   maxAttempts: 60,
   isCompleted: (data) => data.status === TASK_STATUS.COMPLETED,
   isFailed: (data) => data.status === TASK_STATUS.FAILED,
+  isCanceled: (data) => data.status === TASK_STATUS.CANCELED,
   onProgress: (data) => {
     taskProgress.value = Number(data.progress) || 0;
     taskStatus.value = data.status || TASK_STATUS.PROCESSING;
@@ -210,20 +225,69 @@ const { start: startPolling } = useTaskPolling({
     };
   },
   onCompleted: (data) => {
-    taskProgress.value = Number(data.progress) || 0;
-    taskStatus.value = data.status || TASK_STATUS.PROCESSING;
+    taskStatus.value = TASK_STATUS.COMPLETED;
+    taskProgress.value = 100;
     taskResultUrl.value = data.result_urls?.[0] || "";
     taskStatusData.value = {
       stageLabel: "动卷已完成",
       note: "任务已完成并归档，可前往作品库查看。",
     };
   },
-  onFailed: (error) => {
+  onFailed: (error, data) => {
+    const isRequestError = isApiError(error);
+    const note = isRequestError
+      ? "任务状态查询失败，请稍后在作品库确认结果。"
+      : buildFailureNote(
+          data,
+          getErrorMessage(error, "生成失败，请稍后重试。"),
+        );
+
     taskStatus.value = TASK_STATUS.FAILED;
-    uni.showToast({
-      title: getErrorMessage(error, "任务状态查询失败，请稍后重试"),
-      icon: "none",
-    });
+    taskRetryCost.value = getTaskRetryCost(data);
+    taskStatusData.value = { stageLabel: "生成失败", note };
+
+    if (!isRequestError) {
+      uni.showToast({
+        title: data?.error_message || note,
+        icon: "none",
+      });
+    }
+  },
+  onCanceled: (data) => applyCanceledState(data),
+});
+
+// 任务取消后停止轮询，弹窗切换为已取消状态
+const applyCanceledState = (data = {}) => {
+  stopPolling();
+  taskStatus.value = TASK_STATUS.CANCELED;
+  taskResultUrl.value = "";
+  taskRetryCost.value = 0;
+
+  const refundPoints = getTaskRefundPoints(data);
+
+  taskStatusData.value = {
+    stageLabel: "已取消创作",
+    note:
+      refundPoints > 0
+        ? `创作已取消，本次消耗的 ${refundPoints} 积分已退回。`
+        : "创作已取消。",
+  };
+};
+
+const { cancelTask, retryTask, isCanceling, isRetrying } = useTaskActions({
+  getTaskId: () => taskId.value,
+  getRetryCost: () => taskRetryCost.value,
+  onCanceled: (data) => applyCanceledState(data),
+  onRetried: () => {
+    taskStatus.value = TASK_STATUS.PENDING;
+    taskProgress.value = 0;
+    taskResultUrl.value = "";
+    taskRetryCost.value = 0;
+    taskStatusData.value = {
+      stageLabel: "云端逐帧渲染中",
+      note: "已进入云端渲染，离开页面不影响任务进度。",
+    };
+    startPolling();
   },
 });
 
@@ -253,7 +317,7 @@ const showBoostTip = () => {
 };
 
 // 打开渲染确认弹窗
-const handleRender = async () => {
+const handleRender = () => {
   if (isSubmitting.value) {
     return;
   }
@@ -276,6 +340,11 @@ const confirmRender = async () => {
       prompt: draft.value.prompt,
     });
 
+    if (!task?.task_id) {
+      uni.showToast({ title: "任务创建失败，请重试", icon: "none" });
+      return;
+    }
+
     confirmVisible.value = false;
     progressVisible.value = true;
     // 创建任务已扣减灵感点，刷新共享缓存供页头展示。
@@ -285,10 +354,13 @@ const confirmRender = async () => {
     taskStatusData.value = null;
     startPolling();
   } catch (error) {
-    uni.showToast({
-      title: getErrorMessage(error, "创建任务失败，请稍后重试"),
-      icon: "none",
-    });
+    // 请求层已统一提示接口异常，这里只兜底非接口异常
+    if (!isApiError(error)) {
+      uni.showToast({
+        title: getErrorMessage(error, "创建任务失败，请稍后重试"),
+        icon: "none",
+      });
+    }
   } finally {
     isSubmitting.value = false;
   }
@@ -344,177 +416,8 @@ onShow(() => {
 </script>
 
 <style scoped lang="scss">
-.video-render-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-  /* 为固定底栏预留高度，避免滚动窗下缘被底栏遮挡 */
-  padding-bottom: calc(132rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(132rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-  color: $color-ink;
-
-  --el-color-primary: #{$color-primary};
-  --el-color-primary-light-3: #c89a63;
-  --el-color-primary-light-5: #d6b689;
-  --el-color-primary-light-7: #e4d0ad;
-  --el-color-primary-light-9: #f7edde;
-  --el-border-radius-base: #{12rpx};
-  --el-font-family: #{$font-family-base};
-  --el-font-size-base: #{28rpx};
-}
-
-.app-page-header,
-.step-bar {
-  flex: none;
-}
-
-/* 滚动窗：占据页头与底栏之间的全部剩余高度，边缘渐隐弱化切割感 */
-.scroll-window {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-
-  &::before,
-  &::after {
-    content: "";
-    position: absolute;
-    right: 0;
-    left: 0;
-    z-index: 2;
-    height: 28rpx;
-    pointer-events: none;
-  }
-
-  &::before {
-    top: 0;
-    background: linear-gradient(180deg, #fff3e0, rgba(255, 243, 224, 0));
-  }
-
-  &::after {
-    bottom: 0;
-    background: linear-gradient(0deg, #fffdfb, rgba(255, 253, 251, 0));
-  }
-}
-
-.content {
-  height: 100%;
-  overflow-x: hidden;
-  padding: 0 32rpx;
-  box-sizing: border-box;
-}
-
-.render-form {
-  width: 100%;
-  /* 呼吸边距放在滚动内容内部，滚动到顶/底时卡片不被贴边硬切 */
-  padding: 35rpx 0 48rpx;
-}
-
-/* 步骤条：与文字生图页统一样式 */
-.step-bar {
-  height: 82rpx;
-  margin: 16rpx 32rpx 0;
-  padding: 8rpx;
-  display: flex;
-  align-items: center;
-  border: 1rpx solid rgba(63, 102, 86, 0.12);
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 8rpx 22rpx rgba(19, 76, 68, 0.06);
-}
-
-.step {
-  flex: 1;
-  padding: 12rpx 0;
-  border-radius: 16rpx;
-  color: $color-muted;
-  text-align: center;
-  font-size: 24rpx;
-  white-space: nowrap;
-}
-
-.step i {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 8rpx;
-  border-radius: 50%;
-  background: #dfdfd5;
-  color: $color-muted;
-  font-style: normal;
-  font-size: 22rpx;
-}
-
-.step-connector {
-  flex: 1;
-  height: 2rpx;
-  margin: 0 16rpx;
-  background: linear-gradient(90deg, #8a6840, #dfdfd5);
-}
-
-.step.done {
-  color: #8a6840;
-
-  i {
-    background: #f7edde;
-    color: $color-primary;
-  }
-}
-
-.step.active {
-  background: $color-primary;
-  color: #fff;
-  font-weight: 700;
-
-  i {
-    /* 徽章底色与步骤底色一致时改为半透明白底，避免圆形徽章融进背景 */
-    background: rgba(255, 255, 255, 0.24);
-    color: #fff;
-  }
-}
-
-/* 卡片与区块标题：与文字生图页统一样式 */
-.config-card {
-  margin-top: 28rpx;
-  padding: 28rpx;
-  border-radius: 24rpx;
-  background: $color-surface;
-  box-shadow: 0 10rpx 30rpx rgba(95, 133, 117, 0.04);
-}
-
-.config-card:first-child {
-  margin-top: 0;
-}
-
-/* ============================================================
- * 桌面 H5 适配：预览卡和结算卡并排
- * ============================================================ */
-@media (min-width: $breakpoint-desktop) {
-  .render-form {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24rpx;
-    align-items: start;
-  }
-
-  .config-card {
-    margin-top: 0;
-  }
-}
-
-.config-title {
-  padding-bottom: 28rpx;
-  color: #8a6840;
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
-.config-title em {
-  color: #d9be9b;
+.flow-body {
+  @include flow-body(2);
 }
 
 /* 动卷预览 */
@@ -573,7 +476,7 @@ onShow(() => {
 
 .preview-state {
   flex-shrink: 0;
-  color: #8a6840;
+  color: $color-primary-deep;
   font-size: 22rpx;
 }
 
@@ -606,13 +509,6 @@ onShow(() => {
 }
 
 /* 资源结算 */
-.resource-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
 .boost-button {
   @include tap-area(64rpx);
   flex-shrink: 0;
@@ -622,24 +518,17 @@ onShow(() => {
   border: 1rpx solid #bfe0d1;
   border-radius: 12rpx;
   background: $color-surface;
-  color: #8a6840;
+  color: $color-primary-deep;
   font-size: 22rpx;
+  line-height: 1;
+}
 
-  &:hover {
-    border-color: $color-primary;
-    background: #f7edde;
-    color: $color-primary;
-  }
-
-  :deep(.el-icon) {
-    margin-right: 6rpx;
-    font-size: 22rpx;
-  }
+.boost-button:after {
+  border: 0;
 }
 
 .resource-grid {
   display: flex;
-  margin-top: 20rpx;
   padding: 20rpx 12rpx;
   border-radius: 16rpx;
   background: #f8faf7;
@@ -663,7 +552,7 @@ onShow(() => {
 
 .resource-value {
   margin-top: 12rpx;
-  color: #8a6840;
+  color: $color-primary-deep;
   font-size: 28rpx;
   font-weight: 700;
   @include numeric;
@@ -676,84 +565,12 @@ onShow(() => {
   font-weight: 400;
 }
 
-/* 底部操作 */
-.bottom-bar {
-  @include action-bar;
-  display: flex;
-  gap: 16rpx;
-}
-
 .previous-button {
   width: 150rpx;
   flex-shrink: 0;
-  height: $tap-size;
-  margin: 0;
-  border: 1rpx solid $color-line;
-  border-radius: 16rpx;
-  background: $color-surface;
-  color: #4e665e;
-  font-size: 28rpx;
-
-  &:hover {
-    border-color: #bfd8ce;
-    background: #f8faf7;
-    color: $color-primary;
-  }
-
-  :deep(.el-icon) {
-    margin-right: 4rpx;
-    font-size: 22rpx;
-  }
-
-  &.is-disabled {
-    opacity: 0.55;
-  }
 }
 
-.render-button {
-  flex: 1;
-  min-width: 0;
-  height: $tap-size;
-  margin: 0;
-  padding: 0 16rpx;
-  border: 0;
-  border-radius: 24rpx;
-  background: $color-primary;
-  color: #fff;
-  font-size: 24rpx;
-  font-weight: 700;
-
-  &:hover {
-    background: #9c6e38;
-    color: #fff;
-  }
-
-  :deep(.el-icon) {
-    margin-right: 6rpx;
-    font-size: 22rpx;
-  }
-
-  &.is-disabled {
-    opacity: 0.55;
-  }
-}
-
-.render-arrow {
-  margin-right: 0;
-  margin-left: 6rpx;
-}
-
-.platform-unavailable {
-  min-height: 100vh;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-}
-
-.platform-tip {
-  display: block;
-  padding: 80rpx 48rpx;
-  color: #4e665e;
-  font-size: 28rpx;
-  line-height: 1.8;
-  text-align: center;
+.button-icon {
+  font-size: 22rpx;
 }
 </style>

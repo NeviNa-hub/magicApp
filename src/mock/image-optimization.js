@@ -50,7 +50,8 @@ export const buildOptimizationTaskStatus = (record) => {
     work_name: "图片优化任务",
     detail: "云端蒸馏 · 高清重绘",
     tags: ["4K重绘", "高清写意"],
-    cost: IMAGE_OPTIMIZATION_OPTIONS.cost,
+    cost: record.costPoints ?? IMAGE_OPTIMIZATION_OPTIONS.cost,
+    cost_points: record.costPoints ?? 0,
     estimated_time: IMAGE_OPTIMIZATION_OPTIONS.estimated_time,
     description: "云端蒸馏级处理，完成后自动保存至作品库",
     tip: isCompleted

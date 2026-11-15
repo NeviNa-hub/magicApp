@@ -9,6 +9,7 @@ export const API_PATHS = {
   AUTH_LOGOUT: "/auth/logout",
   ACCOUNT_OVERVIEW: "/account/overview",
   POINTS_MY_INFO: "/points/myInfo",
+  PRICING_QUOTE: "/pricing/quote",
   HOME_OVERVIEW: "/home/overview",
   WORKBENCH: "/workbench",
   LIBRARY: "/library",
@@ -29,16 +30,18 @@ export const PAGE_PATHS = {
   HOME: "/pages/index/index",
 };
 
-// 与后端约定保持一致：code 直接使用 HTTP 状态码，90001/90002 为前端本地错误。
+// 与后端约定保持一致：code 直接使用三位数 HTTP 状态码。
 export const ERROR_CODES = {
   SUCCESS: 200,
   INVALID_PARAMS: 400,
   UNAUTHORIZED: 401,
   NOT_FOUND: 404,
+  CONFLICT: 409,
   INSUFFICIENT_POINTS: 409,
   SERVER_ERROR: 500,
-  NETWORK_ERROR: 90001,
-  REQUEST_ABORTED: 90002,
+  // 仅用于前端本地错误：499 表示请求被取消，503 表示网络不可用。
+  NETWORK_ERROR: 503,
+  REQUEST_ABORTED: 499,
 };
 
 export const TASK_STATUS = {
@@ -46,6 +49,7 @@ export const TASK_STATUS = {
   PROCESSING: "processing",
   COMPLETED: "completed",
   FAILED: "failed",
+  CANCELED: "canceled",
 };
 
 export const PAGE_DEFAULTS = {

@@ -1,68 +1,57 @@
 <template>
-  <view class="creation-page">
-    <app-page-header title="文字生图" />
-    <view class="step-bar">
-      <view class="step active"><i>1</i><text>落墨构想</text></view>
-      <view class="step-connector"></view>
-      <view class="step inactive"><i>2</i><text>甄选画风</text></view>
-    </view>
-    <view class="scroll-window">
-      <scroll-view scroll-y :show-scrollbar="false" class="content">
-        <view class="creation-body">
-          <view class="config-card">
-            <view class="config-title"><em>壹 ·</em> 风格定品</view>
-            <view class="option-grid">
-              <view
-                v-for="(style, index) in styleOptions"
-                :key="style.styleId"
-                class="option-card"
-                :class="[
-                  `is-style-${index + 1}`,
-                  { selected: selectedStyleId === style.styleId },
-                ]"
-                @click="selectedStyleId = style.styleId"
-              >
-                <!-- #ifdef H5 -->
-                <el-icon class="option-icon">
-                  <component :is="style.icon" />
-                </el-icon>
-                <!-- #endif -->
-                <text class="option-name">{{ style.name }}</text>
-              </view>
-            </view>
-          </view>
-          <view class="config-card">
-            <view class="config-title"><em>贰 ·</em> 画幅比例</view>
-            <view class="option-grid four">
-              <view
-                v-for="(ratio, index) in ratios"
-                :key="ratio.ratioId"
-                class="option-card compact"
-                :class="[
-                  `is-ratio-${index + 1}`,
-                  { selected: selectedRatio === ratio.value },
-                ]"
-                @click="selectedRatio = ratio.value"
-              >
-                <i class="ratio-glyph"></i>
-                <text class="ratio-value">{{ ratio.value }}</text>
-                <text class="ratio-label">{{ ratio.label }}</text>
-              </view>
-            </view>
+  <creation-page title="文字生图" :steps="steps">
+    <view class="flow-body">
+      <app-config-card index="壹" title="风格定品">
+        <view class="option-grid">
+          <view
+            v-for="(style, index) in styleOptions"
+            :key="style.styleId"
+            class="option-card"
+            :class="[
+              `is-style-${index + 1}`,
+              { selected: selectedStyleId === style.styleId },
+            ]"
+            @click="selectedStyleId = style.styleId"
+          >
+            <!-- #ifdef H5 -->
+            <el-icon class="option-icon">
+              <component :is="STYLE_ICONS[style.styleId]" />
+            </el-icon>
+            <!-- #endif -->
+            <text class="option-name">{{ style.name }}</text>
           </view>
         </view>
-      </scroll-view>
+      </app-config-card>
+
+      <app-config-card index="贰" title="画幅比例">
+        <view class="option-grid is-four">
+          <view
+            v-for="(ratio, index) in ratios"
+            :key="ratio.ratioId"
+            class="option-card is-compact"
+            :class="[
+              `is-ratio-${index + 1}`,
+              { selected: selectedRatio === ratio.value },
+            ]"
+            @click="selectedRatio = ratio.value"
+          >
+            <view class="ratio-glyph"></view>
+            <text class="ratio-value">{{ ratio.value }}</text>
+            <text class="ratio-label">{{ ratio.label }}</text>
+          </view>
+        </view>
+      </app-config-card>
     </view>
-    <view class="next-card">
-      <button @click="goNext">
+
+    <template #footer>
+      <app-flow-button block @click="goNext">
         下一步：构想意象
         <!-- #ifdef H5 -->
         <el-icon class="next-icon"><ArrowRight /></el-icon>
         <!-- #endif -->
-      </button>
-    </view>
-    <app-bottom-nav active="creation" desktop-only />
-  </view>
+      </app-flow-button>
+    </template>
+  </creation-page>
 </template>
 
 <script setup>
@@ -78,16 +67,30 @@ import {
 } from "@element-plus/icons-vue";
 // #endif
 
-import AppBottomNav from "@/components/AppBottomNav/index.vue";
-import AppPageHeader from "@/components/AppPageHeader/index.vue";
+import AppConfigCard from "@/components/AppConfigCard/index.vue";
+import AppFlowButton from "@/components/AppFlowButton/index.vue";
+import CreationPage from "@/components/CreationPage/index.vue";
 import { DRAFT_KEYS, saveCreationDraft } from "@/utils/creation-draft";
 
-const styleOptions = [
-  { styleId: 1, name: "宋式水墨", icon: Brush },
-  { styleId: 2, name: "真实摄影", icon: Camera },
-  { styleId: 3, name: "卡通风格", icon: Sunny },
-  { styleId: 4, name: "温润插画", icon: MagicStick },
+const steps = [
+  { label: "落墨构想", state: "active" },
+  { label: "甄选画风", state: "inactive" },
 ];
+const styleOptions = [
+  { styleId: 1, name: "古风水墨" },
+  { styleId: 2, name: "真实摄影" },
+  { styleId: 3, name: "卡通风格" },
+  { styleId: 4, name: "温润插画" },
+];
+// #ifdef H5
+// 图标只在 H5 构建中存在，按风格标识取用，避免 APP 端引用未定义变量
+const STYLE_ICONS = {
+  1: Brush,
+  2: Camera,
+  3: Sunny,
+  4: MagicStick,
+};
+// #endif
 const ratios = [
   { ratioId: 1, value: "1:1", label: "方形" },
   { ratioId: 2, value: "16:9", label: "横卷" },
@@ -120,138 +123,8 @@ const goNext = () => {
 </script>
 
 <style scoped lang="scss">
-.creation-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-  padding-bottom: calc(132rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(132rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-  color: $color-ink;
-}
-
-.app-page-header,
-.step-bar {
-  flex: none;
-}
-
-/* 滚动窗：占据页头与底栏之间的全部剩余高度，边缘渐隐弱化切割感 */
-.scroll-window {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-
-  &::before,
-  &::after {
-    content: "";
-    position: absolute;
-    right: 0;
-    left: 0;
-    z-index: 2;
-    height: 28rpx;
-    pointer-events: none;
-  }
-
-  &::before {
-    top: 0;
-    background: linear-gradient(180deg, #fff3e0, rgba(255, 243, 224, 0));
-  }
-
-  &::after {
-    bottom: 0;
-    background: linear-gradient(0deg, #fffdfb, rgba(255, 253, 251, 0));
-  }
-}
-
-.step-bar {
-  height: 82rpx;
-  margin: 16rpx 32rpx 0;
-  padding: 8rpx;
-  display: flex;
-  align-items: center;
-  border: 1rpx solid rgba(63, 102, 86, 0.12);
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 8rpx 22rpx rgba(19, 76, 68, 0.06);
-}
-
-.step {
-  flex: 1;
-  padding: 12rpx 0;
-  border-radius: 16rpx;
-  color: $color-muted;
-  text-align: center;
-  font-size: 24rpx;
-  white-space: nowrap;
-}
-
-.step i {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 8rpx;
-  border-radius: 50%;
-  background: #dfdfd5;
-  color: $color-muted;
-  font-style: normal;
-  font-size: 22rpx;
-}
-
-.step-connector {
-  flex: 1;
-  height: 2rpx;
-  margin: 0 16rpx;
-  background: linear-gradient(90deg, #8a6840, #dfdfd5);
-}
-
-.step.active {
-  background: $color-primary;
-  color: #fff;
-  font-weight: 700;
-
-  i {
-    /* 徽章底色与步骤底色一致时改为半透明白底，避免圆形徽章融进背景 */
-    background: rgba(255, 255, 255, 0.24);
-    color: #fff;
-  }
-}
-
-.content {
-  height: 100%;
-  overflow-x: hidden;
-  padding: 0 35rpx;
-  box-sizing: border-box;
-}
-
-.creation-body {
-  padding: 35rpx 0 48rpx;
-}
-
-.content-state {
-  margin-top: 28rpx;
-}
-
-.config-card {
-  margin: 0 6rpx 28rpx;
-  padding: 28rpx;
-  border-radius: 24rpx;
-  background: $color-surface;
-  box-shadow: 0 6rpx 20rpx rgba(150, 100, 40, 0.14);
-}
-
-.config-title {
-  padding-bottom: 28rpx;
-  color: #8a6840;
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
-.config-title em {
-  color: #d9be9b;
+.flow-body {
+  @include flow-body(2);
 }
 
 .option-grid {
@@ -260,19 +133,12 @@ const goNext = () => {
   gap: 20rpx;
 }
 
-.option-grid.four {
+.option-grid.is-four {
   grid-template-columns: repeat(4, 1fr);
 }
 
-/* ============================================================
- * 桌面 H5 适配：1200px 以上风格选项四列一行，比例区保持四列
- * ============================================================ */
 @media (min-width: $breakpoint-desktop) {
   .option-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  .option-grid.four {
     grid-template-columns: repeat(4, 1fr);
   }
 }
@@ -304,7 +170,7 @@ const goNext = () => {
   width: 64rpx;
   height: 64rpx;
   border-radius: 12rpx;
-  background: #f7edde;
+  background: $color-primary-light;
   color: $color-primary;
   font-size: 30rpx;
   transition:
@@ -351,7 +217,7 @@ const goNext = () => {
 }
 
 /* 画幅磁贴：字形 + 比例值 + 小类目标签 */
-.option-card.compact {
+.option-card.is-compact {
   min-height: 150rpx;
   padding: 16rpx 8rpx 12rpx;
   gap: 8rpx;
@@ -399,34 +265,6 @@ const goNext = () => {
 .ratio-label {
   color: $color-muted;
   font-size: 22rpx;
-}
-
-.next-card {
-  @include action-bar;
-}
-
-.next-card button {
-  /* uni-app button 默认带内边距且文本不居中，改为 flex 居中并清掉内边距 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: $tap-size;
-  padding: 0;
-  border: 0;
-  border-radius: 24rpx;
-  background: linear-gradient(135deg, #8a6840 0%, #9c6e38 100%);
-  color: #fff;
-  font-size: 28rpx;
-  font-weight: 700;
-}
-
-.next-card button[disabled] {
-  opacity: 0.55;
-}
-
-.next-card button:after {
-  border: 0;
 }
 
 .next-icon {

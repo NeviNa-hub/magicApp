@@ -51,7 +51,7 @@
           >
             <view class="menu-icon" :class="`is-${item.key}`">
               <!-- #ifdef H5 -->
-              <el-icon><component :is="item.icon" /></el-icon>
+              <el-icon><component :is="MENU_ICONS[item.key]" /></el-icon>
               <!-- #endif -->
             </view>
             <text class="menu-label">{{ item.label }}</text>
@@ -73,74 +73,7 @@
       </button>
     </view>
 
-    <view
-      v-if="isPointsDialogVisible"
-      class="points-mask"
-      @tap="closePointsDialog"
-    >
-      <view class="points-sheet" @tap.stop>
-        <view class="points-header">
-          <text class="points-title">积分使用流水</text>
-          <text class="points-close" @tap="closePointsDialog">×</text>
-        </view>
-
-        <view class="points-summary">
-          <view class="summary-item">
-            <text class="summary-label">当前余额</text>
-            <text class="summary-value">{{ pointsText }}</text>
-          </view>
-          <view class="summary-item">
-            <text class="summary-label">已使用</text>
-            <text class="summary-value">{{ usedPointsText }}</text>
-          </view>
-        </view>
-
-        <app-state-hint
-          v-if="isPointsLoading"
-          class="points-state"
-          type="loading"
-          title="正在载入积分流水"
-        />
-        <app-state-hint
-          v-else-if="pointsLoadError"
-          class="points-state"
-          type="error"
-          title="积分流水加载失败"
-          description="请检查网络后重试"
-          action-text="重新加载"
-          @action="loadPointsInfo"
-        />
-        <scroll-view
-          v-else-if="pointsItems.length"
-          scroll-y
-          :show-scrollbar="false"
-          class="points-list"
-        >
-          <view
-            v-for="item in pointsItems"
-            :key="item.ledger_id"
-            class="points-item"
-          >
-            <text class="points-item-time">
-              {{ formatDateTime(item.created_at) }}
-            </text>
-            <text
-              class="points-item-value"
-              :class="{ 'is-used': item.delta < 0 }"
-            >
-              {{ item.delta }}
-            </text>
-          </view>
-        </scroll-view>
-        <app-state-hint
-          v-else
-          class="points-state"
-          type="empty"
-          title="暂无积分流水"
-          description="完成创作或消耗灵感点后会记录在这里"
-        />
-      </view>
-    </view>
+    <points-dialog v-model="isPointsDialogVisible" />
 
     <app-bottom-nav active="profile" />
   </view>
@@ -163,56 +96,53 @@ import {
 
 import { logoutUser } from "@/apis/auth";
 import { PAGE_PATHS } from "@/apis/constants";
-import { getPointsInfo } from "@/apis/points";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
-import AppStateHint from "@/components/AppStateHint/index.vue";
+import PointsDialog from "@/components/PointsDialog/index.vue";
 import {
   clearSession,
   loadPointsBalance,
   pointsState,
   sessionState,
-  setPointsBalance,
 } from "@/stores";
-import { formatDateTime } from "@/utils/date";
-
-const POINTS_PAGE_SIZE = 20;
 
 const menuItems = [
   {
     key: "creation",
     label: "创作台",
-    icon: Brush,
     url: "/pages/workbench/index",
     relaunch: true,
   },
   {
     key: "works",
     label: "作品库",
-    icon: PictureFilled,
     url: "/pages/library/index",
     relaunch: true,
   },
   {
     key: "workshop",
     label: "工作坊",
-    icon: Grid,
     url: "/pages/under-development/index?title=工作坊",
     relaunch: false,
   },
   {
     key: "setting",
     label: "设置",
-    icon: Setting,
     url: "/pages/under-development/index?title=设置",
     relaunch: false,
   },
 ];
+// #ifdef H5
+// 图标只在 H5 构建中存在，按菜单标识取用，避免 APP 端引用未定义变量
+const MENU_ICONS = {
+  creation: Brush,
+  works: PictureFilled,
+  workshop: Grid,
+  setting: Setting,
+};
+// #endif
 
-const pointsItems = ref([]);
 const isPointsDialogVisible = ref(false);
-const isPointsLoading = ref(false);
-const pointsLoadError = ref(false);
 const isLoggingOut = ref(false);
 
 const usernameText = computed(() => sessionState.user?.username || "—");
@@ -220,42 +150,10 @@ const accountText = computed(() => sessionState.user?.account || "—");
 const pointsText = computed(() =>
   pointsState.balance === null ? "—" : pointsState.balance,
 );
-const usedPointsText = computed(() =>
-  pointsState.usedPoints === null ? "—" : pointsState.usedPoints,
-);
 
-/**
- * 加载灵感点流水，并顺带回填共享的余额缓存。
- * @returns {Promise<void>}
- */
-const loadPointsInfo = async () => {
-  isPointsLoading.value = true;
-  pointsLoadError.value = false;
-
-  try {
-    const data = await getPointsInfo({ page: 1, page_size: POINTS_PAGE_SIZE });
-
-    setPointsBalance({
-      balance: data.points_balance,
-      usedPoints: data.used_points,
-    });
-    pointsItems.value = data.items;
-  } catch (error) {
-    pointsLoadError.value = true;
-  } finally {
-    isPointsLoading.value = false;
-  }
-};
-
-// 打开灵感点流水弹窗并刷新数据。
+// 打开灵感点流水弹窗，数据由弹窗组件加载。
 const openPointsDialog = () => {
   isPointsDialogVisible.value = true;
-  loadPointsInfo();
-};
-
-// 关闭灵感点流水弹窗。
-const closePointsDialog = () => {
-  isPointsDialogVisible.value = false;
 };
 
 /**
@@ -275,11 +173,26 @@ const openMenu = (item) => {
 };
 
 /**
- * 退出登录：调用登出接口并清理本地会话。
+ * 二次确认后退出登录：调用登出接口并清理本地会话。
  * @returns {Promise<void>}
  */
 const handleLogout = async () => {
   if (isLoggingOut.value) {
+    return;
+  }
+
+  const isConfirmed = await new Promise((resolve) => {
+    uni.showModal({
+      title: "退出登录",
+      content: "退出后需要重新登录才能继续创作，确认退出吗？",
+      confirmText: "退出",
+      confirmColor: "#b93a2f",
+      success: (result) => resolve(Boolean(result.confirm)),
+      fail: () => resolve(false),
+    });
+  });
+
+  if (!isConfirmed) {
     return;
   }
 
@@ -303,10 +216,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .profile-page {
-  height: 100vh;
-  overflow: hidden;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-  color: $color-ink;
+  @include page-shell;
 }
 
 .content {
@@ -589,123 +499,6 @@ onMounted(() => {
   @media (min-width: $breakpoint-desktop) {
     width: min(100%, 1024px);
     margin: 0 auto;
-  }
-}
-
-.points-mask {
-  position: fixed;
-  z-index: 30;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 48rpx;
-  background: rgba(20, 28, 27, 0.52);
-  box-sizing: border-box;
-}
-
-.points-sheet {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-height: 72vh;
-  padding: 32rpx 28rpx;
-  border-radius: 32rpx;
-  background: $color-surface;
-  box-sizing: border-box;
-
-  @media (min-width: 768px) {
-    max-width: 640px;
-  }
-}
-
-.points-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 20rpx;
-  border-bottom: 1rpx solid $color-line;
-}
-
-.points-title {
-  color: $color-ink;
-  font-size: 34rpx;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.points-close {
-  @include tap-area(72rpx);
-  color: $color-muted;
-  font-size: 34rpx;
-  line-height: 1;
-}
-
-.points-summary {
-  display: flex;
-  gap: 16rpx;
-  margin-top: 24rpx;
-}
-
-.summary-item {
-  flex: 1;
-  padding: 20rpx;
-  border-radius: 20rpx;
-  background: #f8faf7;
-}
-
-.summary-label {
-  display: block;
-  color: $color-muted;
-  font-size: 24rpx;
-}
-
-.summary-value {
-  display: block;
-  margin-top: 12rpx;
-  color: $color-primary;
-  font-size: 30rpx;
-  font-weight: 700;
-  @include numeric;
-}
-
-.points-state {
-  margin-top: 24rpx;
-}
-
-/* 列表占满弹窗剩余高度，仅在内容超过弹窗最大高度时滚动 */
-.points-list {
-  flex: 1;
-  min-height: 0;
-  margin-top: 16rpx;
-}
-
-.points-item {
-  display: flex;
-  align-items: center;
-  padding: 20rpx 0;
-  border-bottom: 1rpx solid $color-line;
-}
-
-.points-item-time {
-  flex: 1;
-  min-width: 0;
-  color: #4e665e;
-  font-size: 28rpx;
-  line-height: 1.6;
-  @include text-ellipsis;
-}
-
-.points-item-value {
-  flex-shrink: 0;
-  margin-left: 16rpx;
-  color: $color-primary;
-  font-size: 30rpx;
-  font-weight: 700;
-  @include numeric;
-
-  &.is-used {
-    color: $color-danger;
   }
 }
 </style>

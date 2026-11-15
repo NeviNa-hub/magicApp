@@ -11,12 +11,14 @@
 
       <scroll-view scroll-y class="auth-scroll" :show-scrollbar="false">
         <view class="hero-card">
-          <text class="auth-eyebrow"> {{ isRegister ? "请注册" : "请登录" }}</text>
+          <text class="auth-eyebrow">
+            {{ isRegister ? "请注册" : "请登录" }}</text
+          >
           <text class="brand-subtitle">
             {{
               isRegister
-                ? "创建账号，实现你的第一份灵感。"
-                : "登录后继续创作，查看你的作品。"
+                ? "创建账号，把灵感变成作品~"
+                : "登录后继续创作吧~"
             }}
           </text>
         </view>
@@ -45,7 +47,11 @@
           </el-form-item>
 
           <view v-if="isRegister" class="field-label">用户名</view>
-          <el-form-item v-if="isRegister" prop="username" class="auth-form-item">
+          <el-form-item
+            v-if="isRegister"
+            prop="username"
+            class="auth-form-item"
+          >
             <el-input
               v-model="formModel.username"
               class="field-input"
@@ -75,7 +81,10 @@
                 <view class="field-icon"></view>
               </template>
               <template #suffix>
-                <text class="eye-toggle" @tap="isPasswordVisible = !isPasswordVisible">
+                <text
+                  class="eye-toggle"
+                  @tap="isPasswordVisible = !isPasswordVisible"
+                >
                   {{ isPasswordVisible ? "◉" : "◎" }}
                 </text>
               </template>
@@ -83,7 +92,11 @@
           </el-form-item>
 
           <view v-if="isRegister" class="field-label">确认密码</view>
-          <el-form-item v-if="isRegister" prop="confirmPassword" class="auth-form-item">
+          <el-form-item
+            v-if="isRegister"
+            prop="confirmPassword"
+            class="auth-form-item"
+          >
             <el-input
               v-model="formModel.confirmPassword"
               class="field-input"
@@ -107,7 +120,11 @@
               <text class="link-text">《行卷隐私保护政策》</text>
             </text>
           </view>
-          <button class="submit-button" :disabled="isSubmitting" @tap="handleSubmit">
+          <button
+            class="submit-button"
+            :disabled="isSubmitting"
+            @tap="handleSubmit"
+          >
             {{ isRegister ? "创建账号" : "登录" }} <text>→</text>
           </button>
         </el-form>
@@ -260,10 +277,7 @@ const handleSubmit = async () => {
 
 <style scoped lang="scss">
 .auth-page {
-  height: 100vh;
-  overflow: hidden;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-  color: $color-ink;
+  @include page-shell;
 }
 
 .auth-body {

@@ -1,4 +1,5 @@
 import { API_BASE_URL, REQUEST_TIMEOUT } from "@/apis/config";
+import { ERROR_CODES } from "@/apis/constants";
 import { clearSession } from "@/stores";
 import { getToken } from "@/utils/auth";
 import { ApiError } from "@/utils/request";
@@ -29,7 +30,7 @@ export const uploadFile = (config) =>
         }
 
         if (response.statusCode < 200 || response.statusCode >= 300 || body?.code !== 200) {
-          if (body?.code === 40102 && token) {
+          if (body?.code === 401 && token) {
             clearSession();
             uni.reLaunch({ url: "/pages/auth/index" });
           }
@@ -39,6 +40,7 @@ export const uploadFile = (config) =>
 
         resolve(body.data);
       },
-      fail: () => reject(new ApiError(90001, "图片上传失败，请检查网络后重试")),
+      fail: () =>
+        reject(new ApiError(ERROR_CODES.NETWORK_ERROR, "图片上传失败，请检查网络后重试")),
     });
   });

@@ -60,7 +60,7 @@
                 </view>
                 <view class="mode-icon">
                   <!-- #ifdef H5 -->
-                  <el-icon><component :is="mode.icon" /></el-icon>
+                  <el-icon><component :is="MODE_ICONS[mode.key]" /></el-icon>
                   <!-- #endif -->
                 </view>
                 <!-- 功能模块装饰元素 -->
@@ -121,24 +121,29 @@ const creationModes = [
     key: "image",
     name: "文字生图",
     desc: "落笔成画",
-    icon: Brush,
     url: "/pages/image-creation/index",
   },
   {
     key: "video",
     name: "视频创作",
     desc: "让画面动起来",
-    icon: VideoPlay,
     url: "/pages/video-creation/index",
   },
   {
     key: "optimization",
     name: "图片优化",
     desc: "焕新细节",
-    icon: MagicStick,
     url: "/pages/image-optimization/index",
   },
 ];
+// #ifdef H5
+// 图标只在 H5 构建中存在，按创作类型取用，避免 APP 端引用未定义变量
+const MODE_ICONS = {
+  image: Brush,
+  video: VideoPlay,
+  optimization: MagicStick,
+};
+// #endif
 const scrollIntoId = ref("");
 
 /* 打字机循环展示的创作想法 */
@@ -242,18 +247,14 @@ const openMode = (url) => {
 
 <style scoped lang="scss">
 .home-page {
-  height: 100vh;
-  overflow: hidden;
-  background: linear-gradient(180deg, #ffecd2 0%, #fff8ec 48%, #fffdfb 100%);
-  color: $color-ink;
+  @include page-shell;
 }
 
 .main-scroll {
-  height: calc(100vh - 210rpx - var(--status-bar-height, 0px));
-  overflow-x: hidden;
+  @include main-scroll(8rpx);
+
   padding: 12rpx 32rpx;
   padding-bottom: calc(#{20rpx} + env(safe-area-inset-bottom));
-  box-sizing: border-box;
 }
 
 .page-body {

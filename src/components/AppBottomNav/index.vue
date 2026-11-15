@@ -10,7 +10,7 @@
     >
       <!-- #ifdef H5 -->
       <el-icon class="nav-icon">
-        <component :is="item.icon" />
+        <component :is="NAV_ICONS[item.key]" />
       </el-icon>
       <!-- #endif -->
       <text>{{ item.label }}</text>
@@ -30,36 +30,57 @@ import {
 // #endif
 
 const NAV_ITEMS = [
-  { key: "drafts", label: "文稿库", icon: Document, url: "/pages/index/index" },
+  {
+    key: "drafts",
+    label: "文稿库",
+    url: "/pages/index/index",
+  },
   {
     key: "creation",
     label: "创作台",
-    icon: Brush,
     url: "/pages/workbench/index",
   },
   {
     key: "works",
     label: "作品库",
-    icon: PictureFilled,
     url: "/pages/library/index",
   },
   {
     key: "workshop",
     label: "工作坊",
-    icon: Grid,
     url: "/pages/under-development/index?title=工作坊",
   },
-  { key: "profile", label: "我的", icon: User, url: "/pages/profile/index" },
+  {
+    key: "profile",
+    label: "我的",
+    url: "/pages/profile/index",
+  },
 ];
+// #ifdef H5
+// 图标只在 H5 构建中存在，按导航标识取用，避免 APP 端引用未定义变量
+const NAV_ICONS = {
+  drafts: Document,
+  creation: Brush,
+  works: PictureFilled,
+  workshop: Grid,
+  profile: User,
+};
+// #endif
 
 /**
  * 当前激活的导航项。
  * @property {"drafts" | "creation" | "works" | "workshop" | "profile"} active 当前导航标识。
  * @property {boolean} desktopOnly 仅在桌面端显示侧边导航，移动端流程页保留原有操作栏。
  */
-const props = defineProps({
-  active: { type: String, required: true },
-  desktopOnly: { type: Boolean, default: false },
+defineProps({
+  active: {
+    type: String,
+    required: true,
+  },
+  desktopOnly: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 /**
@@ -139,7 +160,7 @@ const navigateTo = (item) => {
     margin-bottom: 32rpx;
     padding: 0 28rpx 32rpx;
     border-bottom: 1rpx solid $color-line;
-    color: #ec8302;
+    color: $color-primary;
     font-size: 40rpx;
     font-weight: 700;
     letter-spacing: 2rpx;
@@ -176,9 +197,9 @@ const navigateTo = (item) => {
 }
 
 .nav-item.is-active {
-  color: #ec8302;
+  color: $color-primary;
   font-weight: 600;
-  text-shadow: 0 0 14rpx rgba(236, 131, 2, 0.45);
+  text-shadow: 0 0 14rpx rgba(184, 134, 78, 0.45);
 
   @media (min-width: $breakpoint-desktop) {
     background: $color-primary-light;
@@ -187,7 +208,7 @@ const navigateTo = (item) => {
 }
 
 .nav-item.is-active .nav-icon {
-  filter: drop-shadow(0 0 8rpx rgba(236, 131, 2, 0.5));
+  filter: drop-shadow(0 0 8rpx rgba(184, 134, 78, 0.5));
 
   @media (min-width: $breakpoint-desktop) {
     filter: none;
