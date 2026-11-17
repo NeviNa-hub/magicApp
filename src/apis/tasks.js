@@ -5,11 +5,11 @@ import request from "@/apis/http";
  * @param {Object} params 请求参数，包含 taskId。
  * @returns {Promise<Object>} 取消后的任务状态。
  */
-export const cancelGenerationTask = (params = {}) =>
+export const cancelGenerationTask = (data = {}) =>
   request({
-    url: `/tasks/${encodeURIComponent(params.taskId || "")}/cancel`,
+    url: `/tasks/${encodeURIComponent(data.taskId || "")}/cancel`,
     method: "POST",
-    params
+    data,
   });
 
 /**
@@ -17,9 +17,9 @@ export const cancelGenerationTask = (params = {}) =>
  * @param {Object} params 请求参数，包含 taskId。
  * @returns {Promise<Object>} 重新排队后的任务状态。
  */
-export const retryGenerationTask = (params = {}) =>
+export const retryGenerationTask = (data = {}) =>
   request({
-    url: `/tasks/${encodeURIComponent(params.taskId || "")}/retry`,
+    url: `/tasks/${encodeURIComponent(data.taskId || "")}/retry`,
     method: "POST",
-    params
+    data,
   });

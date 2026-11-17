@@ -150,9 +150,13 @@ export const buildLibraryData = (params = {}, isEmpty = false) => {
     };
   }
 
-  const filteredWorks = LIBRARY_WORKS.filter(
-    (item) => status === "all" || item.status === status,
-  );
+  const keyword = String(params.keyword || "").trim().toLowerCase();
+  const typeNames = { image: "文字生图", optimization: "图片优化", video: "视频创作" };
+  const filteredWorks = LIBRARY_WORKS.filter((item) =>
+    (status === "all" || item.status === status) &&
+    (!params.type || params.type === "all" || item.type_name === typeNames[params.type]) &&
+    (!keyword || `${item.title} ${item.prompt || ""}`.toLowerCase().includes(keyword))
+  ).sort((a, b) => params.sort === "oldest" ? a.created_at.localeCompare(b.created_at) : b.created_at.localeCompare(a.created_at));
   const start = (page - 1) * pageSize;
   const creatingWork = LIBRARY_WORKS.find((item) => item.status === "creating");
 
@@ -173,4 +177,33 @@ export const buildLibraryData = (params = {}, isEmpty = false) => {
         }
       : null,
   };
+};
+
+/**
+ * 更新模拟作品。
+ * @param {string} workId 作品标识。
+ * @param {Object} changes 要修改的字段。
+ * @returns {Object|null} 更新后的作品。
+ */
+export const updateMockWork = (workId, changes) => {
+  const work = LIBRARY_WORKS.find((item) => String(item.work_id) === String(workId));
+  if (!work) return null;
+  Object.assign(work, changes);
+  return work;
+};
+
+/**
+ * 删除模拟作品。
+ * @param {string} workId 作品标识。
+ * @returns {boolean} 是否删除成功。
+ */
+export const deleteMockWork = (workId) => {
+  const index = LIBRARY_WORKS.findIndex((item) => String(item.work_id) === String(workId));
+
+  if (index < 0 || LIBRARY_WORKS[index].status !== "completed") {
+    return false;
+  }
+
+  LIBRARY_WORKS.splice(index, 1);
+  return true;
 };

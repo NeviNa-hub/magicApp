@@ -119,6 +119,20 @@ const normalizeParams = (params = {}) =>
     return result;
   }, {});
 
+/**
+ * 将非 GET 请求的查询参数拼接到地址。
+ * @param {string} url 请求地址。
+ * @param {Object} params 查询参数。
+ * @returns {string} 包含查询参数的地址。
+ */
+const appendQuery = (url, params) => {
+  const query = Object.entries(params)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join("&");
+
+  return query ? `${url}${url.includes("?") ? "&" : "?"}${query}` : url;
+};
+
 // 生成请求标识，用于合并同时发出的相同 GET 请求
 const buildRequestKey = (method, url, params) =>
   `${method}:${buildUrl(url)}:${JSON.stringify(params)}`;
@@ -131,7 +145,8 @@ const resolveHttpErrorCode = (statusCode) => statusCode || ERROR_CODES.SERVER_ER
  * @param {Object} config 请求配置。
  * @param {string} config.url 接口路径。
  * @param {string} config.method 请求方法。
- * @param {Object} config.params 已规范化的参数。
+ * @param {Object} config.params 已规范化的查询参数。
+ * @param {Object} [config.data] 请求体。
  * @param {Object} [config.header] 请求头。
  * @param {number} config.timeout 超时时间。
  * @param {AbortSignal} [config.signal] 取消信号。
@@ -169,9 +184,13 @@ const sendRequest = (config) =>
     }
 
     const requestTask = uni.request({
-      url: buildUrl(config.url),
+      url: config.method === "GET"
+        ? buildUrl(config.url)
+        : appendQuery(buildUrl(config.url), config.params),
       method: config.method,
-      data: Object.keys(config.params).length ? config.params : undefined,
+      data: config.method === "GET"
+        ? (Object.keys(config.params).length ? config.params : undefined)
+        : config.data,
       header: buildHeaders(config.header),
       timeout: config.timeout,
       success: (response) => {
@@ -238,7 +257,8 @@ const sendRequest = (config) =>
  * @param {Object} config 请求配置。
  * @param {string} config.url 接口路径，例如 /library。
  * @param {string} [config.method] 请求方法，默认 GET。
- * @param {Object} [config.params] GET 查询参数或请求体。
+ * @param {Object} [config.params] URL 查询参数。
+ * @param {Object} [config.data] 请求体。
  * @param {Object} [config.header] 自定义请求头。
  * @param {number} [config.timeout] 覆盖默认超时时间。
  * @param {AbortSignal} [config.signal] 取消信号。

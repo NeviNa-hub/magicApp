@@ -30,13 +30,14 @@ const readScenario = () => {
  * @param {Object} config 请求配置。
  * @param {string} config.url 接口路径。
  * @param {string} [config.method] 请求方法，默认 GET。
- * @param {Object} [config.params] 请求参数。
+ * @param {Object} [config.params] 查询参数。
+ * @param {Object} [config.data] 请求体。
  * @param {boolean} [config.includeMessage] 是否在 data 上合并响应顶层 message，与真实请求行为一致。
  * @returns {Promise<*>} 接口 data。
  */
 export default async function demoRequest(config) {
   const method = (config.method || "GET").toUpperCase();
-  const params = config.params || {};
+  const params = method === "GET" ? config.params || {} : config.data || {};
   const scenario = readScenario();
 
   await delay(scenario === MOCK_SCENARIOS.SLOW ? MOCK_SLOW_DELAY : MOCK_DELAY);

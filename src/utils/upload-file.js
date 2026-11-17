@@ -15,7 +15,7 @@ export const uploadFile = (config) =>
 
     uni.uploadFile({
       url: `${API_BASE_URL}${config.url}`,
-      filePath: config.params.file_path,
+      filePath: config.data.file_path,
       name: "file",
       header: token ? { Authorization: `Bearer ${token}` } : {},
       timeout: REQUEST_TIMEOUT,

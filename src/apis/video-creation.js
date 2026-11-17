@@ -1,11 +1,11 @@
 import request from "@/apis/http";
 
 /** 创建文字视频任务。 */
-export const createVideoGeneration = (params, idempotencyKey) =>
+export const createVideoGeneration = (data, idempotencyKey) =>
   request({
     url: "/video/tasks",
     method: "POST",
-    params,
+    data,
     header: { "Idempotency-Key": idempotencyKey },
   });
 
@@ -15,3 +15,4 @@ export const getVideoTaskStatus = (params = {}) =>
     url: `/tasks/${encodeURIComponent(params.taskId || "")}`,
     method: "GET",
   });
+

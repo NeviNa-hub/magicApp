@@ -10,6 +10,36 @@
       <view class="summary-row">
         <text class="summary">{{ librarySummary }}</text>
       </view>
+      <view class="library-filters">
+        <input
+          v-model="keywordInput"
+          class="search-input"
+          placeholder="搜索标题或提示词"
+          confirm-type="search"
+          @confirm="applySearch"
+        />
+        <button class="filter-button" @click="applySearch">搜索</button>
+        <picker
+          :range="typeOptions"
+          range-key="label"
+          :value="typeIndex"
+          @change="changeType"
+        >
+          <view class="filter-button"
+            >{{ typeOptions[typeIndex].label }} ▾</view
+          >
+        </picker>
+        <picker
+          :range="sortOptions"
+          range-key="label"
+          :value="sortIndex"
+          @change="changeSort"
+        >
+          <view class="filter-button"
+            >{{ sortOptions[sortIndex].label }} ▾</view
+          >
+        </picker>
+      </view>
       <view class="tabs">
         <text
           v-for="tab in tabs"
@@ -59,6 +89,13 @@
                 <!-- #endif -->
                 <text class="work-enter-label">详情</text>
               </view>
+              <button
+                v-if="work.status === 'completed'"
+                class="work-edit"
+                @click.stop="openRename(work)"
+              >
+                改名
+              </button>
               <view
                 v-if="work.status === 'completed'"
                 class="work-delete"
@@ -87,6 +124,28 @@
         >
       </view>
     </scroll-view>
+    <view v-if="renameWork" class="rename-mask" @click="closeRename">
+      <view class="rename-dialog" @click.stop>
+        <text class="rename-heading">修改作品标题</text>
+        <input
+          v-model="renameTitle"
+          class="rename-input"
+          maxlength="50"
+          placeholder="请输入作品标题"
+        />
+        <text v-if="renameError" class="rename-error">{{ renameError }}</text>
+        <view class="rename-actions">
+          <button :disabled="isRenaming" @click="closeRename">取消</button>
+          <button
+            :loading="isRenaming"
+            :disabled="isRenaming"
+            @click="submitRename"
+          >
+            保存
+          </button>
+        </view>
+      </view>
+    </view>
     <app-bottom-nav active="works" />
   </view>
 </template>
@@ -98,7 +157,11 @@ import { onShow } from "@dcloudio/uni-app";
 import { Delete, View } from "@element-plus/icons-vue";
 // #endif
 
-import { getLibraryData, deleteLibraryWork } from "@/apis/creation";
+import {
+  getLibraryData,
+  deleteLibraryWork,
+  updateLibraryWorkTitle,
+} from "@/apis/creation";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
 import AppStateHint from "@/components/AppStateHint/index.vue";
@@ -106,6 +169,24 @@ import { formatDateTime } from "@/utils/date";
 import { getErrorMessage } from "@/utils/request";
 
 const PAGE_SIZE = 10;
+const typeOptions = [
+  { label: "全部类型", value: "all" },
+  { label: "文字生图", value: "image" },
+  { label: "图片优化", value: "optimization" },
+  { label: "视频创作", value: "video" },
+];
+const sortOptions = [
+  { label: "最新创建", value: "newest" },
+  { label: "最早创建", value: "oldest" },
+];
+const keywordInput = ref("");
+const keyword = ref("");
+const typeIndex = ref(0);
+const sortIndex = ref(0);
+const renameWork = ref(null);
+const renameTitle = ref("");
+const renameError = ref("");
+const isRenaming = ref(false);
 
 const activeStatus = ref("all");
 const works = ref([]);
@@ -147,6 +228,9 @@ const loadLibraryData = async (reset = false) => {
       page,
       page_size: PAGE_SIZE,
       status: activeStatus.value,
+      keyword: keyword.value,
+      type: typeOptions[typeIndex.value].value,
+      sort: sortOptions[sortIndex.value].value,
     });
 
     if (token !== requestToken) {
@@ -192,6 +276,69 @@ const loadLibraryData = async (reset = false) => {
       isLoading.value = false;
       isLoadingMore.value = false;
     }
+  }
+};
+
+// 按输入内容重新搜索作品。
+const applySearch = () => {
+  keyword.value = keywordInput.value.trim();
+  loadLibraryData(true);
+};
+
+/**
+ * 切换作品类型。
+ * @param {Object} event 选择事件。
+ * @returns {void}
+ */
+const changeType = (event) => {
+  typeIndex.value = Number(event.detail.value);
+  loadLibraryData(true);
+};
+
+/**
+ * 切换作品排序。
+ * @param {Object} event 选择事件。
+ * @returns {void}
+ */
+const changeSort = (event) => {
+  sortIndex.value = Number(event.detail.value);
+  loadLibraryData(true);
+};
+
+/**
+ * 打开重命名弹窗。
+ * @param {Object} work 作品记录。
+ * @returns {void}
+ */
+const openRename = (work) => {
+  renameWork.value = work;
+  renameTitle.value = work.title;
+  renameError.value = "";
+};
+
+// 关闭重命名弹窗。
+const closeRename = () => {
+  if (!isRenaming.value) renameWork.value = null;
+};
+
+// 保存修改后的作品标题。
+const submitRename = async () => {
+  if (isRenaming.value || !renameWork.value) return;
+  const title = renameTitle.value.trim();
+  if (!title) {
+    renameError.value = "请输入作品标题";
+    return;
+  }
+  isRenaming.value = true;
+  try {
+    await updateLibraryWorkTitle({ workId: renameWork.value.workId, title });
+    renameWork.value = null;
+    uni.showToast({ title: "标题已修改", icon: "none" });
+    await loadLibraryData(true);
+  } catch (error) {
+    renameError.value = getErrorMessage(error, "修改失败，请重试");
+  } finally {
+    isRenaming.value = false;
   }
 };
 
@@ -329,6 +476,75 @@ onShow(() => {
 
 .summary:first-letter {
   color: $color-primary;
+}
+
+.library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 24rpx;
+}
+.search-input {
+  flex: 1;
+  min-width: 220rpx;
+  padding: 16rpx;
+  border-radius: 12rpx;
+  background: #fff;
+  font-size: 26rpx;
+}
+.filter-button,
+.work-edit {
+  margin: 0;
+  padding: 8rpx 16rpx;
+  border: 0;
+  border-radius: 12rpx;
+  background: #f7edde;
+  color: #4e665e;
+  font-size: 24rpx;
+  line-height: 1.8;
+}
+.rename-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+.rename-dialog {
+  width: 80%;
+  max-width: 520rpx;
+  padding: 32rpx;
+  border-radius: 20rpx;
+  background: #fff;
+}
+.rename-heading {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.rename-input {
+  margin-top: 24rpx;
+  padding: 16rpx;
+  border: 1rpx solid #ddd;
+  border-radius: 10rpx;
+}
+.rename-error {
+  display: block;
+  margin-top: 10rpx;
+  color: #b93a2f;
+  font-size: 24rpx;
+}
+.rename-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+.rename-actions button {
+  margin: 0;
+  font-size: 26rpx;
 }
 
 .tabs {

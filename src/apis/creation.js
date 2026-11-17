@@ -37,3 +37,18 @@ export const deleteLibraryWork = (params = {}) => {
     method: "DELETE",
   });
 };
+
+/**
+ * 修改作品标题。
+ * @param {Object} params 包含作品标识和新标题。
+ * @param {Object} [opt] 请求选项。
+ * @returns {Promise<Object>} 更新结果。
+ */
+export const updateLibraryWorkTitle = (params = {}, opt = {}) =>
+  request({
+    ...opt,
+    url: `/library/works/${encodeURIComponent(params.workId)}`,
+    method: "PUT",
+    data: { title: params.title },
+  });
+

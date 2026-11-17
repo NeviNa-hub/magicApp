@@ -3,7 +3,7 @@
  */
 import { API_PATHS, ERROR_CODES, PAGE_DEFAULTS, TASK_STATUS } from "../apis/constants.js";
 import { ACCOUNT_OVERVIEW, MOCK_LOGIN, POINTS_INFO } from "./account.js";
-import { HOME_OVERVIEW, WORKBENCH_OVERVIEW, buildLibraryData } from "./creation.js";
+import { HOME_OVERVIEW, WORKBENCH_OVERVIEW, buildLibraryData, updateMockWork, deleteMockWork } from "./creation.js";
 import {
   IMAGE_OPTIMIZATION_OPTIONS,
   buildOptimizationTaskStatus,
@@ -197,6 +197,22 @@ const exactRoutes = {
 
 const taskRoutes = [
   {
+    method: "DELETE",
+    pattern: /^\/library\/works\/([^/]+)$/,
+    handler: (workId) =>
+      deleteMockWork(workId) ? ok(null) : fail(ERROR_CODES.NOT_FOUND, "作品不存在或无法删除"),
+  },
+  {
+    method: "PUT",
+    pattern: /^\/library\/works\/([^/]+)$/,
+    handler: (workId, params) => {
+      const title = String(params.title || "").trim();
+      if (!title || title.length > 50) return fail(ERROR_CODES.INVALID_PARAMS, "标题须为 1 至 50 字");
+      const work = updateMockWork(workId, { title });
+      return work ? ok({ work_id: work.work_id, title: work.title }) : fail(ERROR_CODES.NOT_FOUND, "作品不存在");
+    },
+  },
+  {
     method: "GET",
     pattern: /^\/tasks\/([^/]+)$/,
     handler: (taskId) => {
@@ -259,7 +275,7 @@ export const resolveMock = (method, url, params = {}, scenario = "normal") => {
   if (dynamicRoute) {
     const matched = url.match(dynamicRoute.pattern);
 
-    return dynamicRoute.handler(decodeURIComponent(matched[1]));
+    return dynamicRoute.handler(decodeURIComponent(matched[1]), params);
   }
 
   return fail(ERROR_CODES.NOT_FOUND, `未实现的 Mock 接口：${routeKey}`);
