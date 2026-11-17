@@ -5,7 +5,7 @@
         <view class="file">
           <text v-if="selectedImage">{{ selectedImage.name }}</text>
           <text v-else>请先导入需要优化的图片</text>
-          <button @click="chooseImage">
+          <button @click="handleChooseImage">
             <!-- #ifdef H5 -->
             <el-icon class="file-icon"><Upload /></el-icon>
             <!-- #endif -->
@@ -17,11 +17,14 @@
                   : "导入图片"
             }}
           </button>
+          <text v-if="isUploading">{{ uploadProgress === null ? "正在准备图片…" : `上传中 ${uploadProgress}%` }}</text>
+          <button v-if="isUploading" @click.stop="cancelUpload">取消上传</button>
+          <button v-else-if="canRetryUpload" @click.stop="retryUpload">重试上传</button>
         </view>
         <view
           class="preview"
           :class="{ empty: !selectedImage }"
-          @click="chooseImage"
+          @click="handleChooseImage"
         >
           <app-image
             v-if="selectedImage"
@@ -42,7 +45,7 @@
             <!-- #endif -->
           </view>
         </view>
-        <text class="hint">点击预览可从系统相册重新导入或拍摄</text>
+        <text class="hint">支持 JPEG、PNG、WebP，最大 5 MB、2500 万像素；超限 JPEG 将尝试压缩</text>
       </app-config-card>
 
       <app-config-card index="贰" title="优化提示词">
@@ -92,6 +95,8 @@
         :progress-label="taskStageLabel"
         :note="taskNote"
         :result-url="taskResultUrl"
+        :original-url="taskOriginalImage?.path || ''"
+        :original-id="String(taskOriginalImage?.uploadId || '')"
         :canceling="isCanceling"
         :retrying="isRetrying"
         @cancel="cancelTask"
@@ -113,17 +118,16 @@ import { MagicStick, Plus, Upload, ZoomIn } from "@element-plus/icons-vue";
 import { USE_MOCK } from "@/apis/config";
 import { TASK_STATUS } from "@/apis/constants";
 import { getImageOptimizationTaskStatus } from "@/apis/image-optimization";
-import { uploadImage } from "@/apis/upload";
 import AppConfigCard from "@/components/AppConfigCard/index.vue";
 import AppFlowButton from "@/components/AppFlowButton/index.vue";
 import AppImage from "@/components/AppImage/index.vue";
 import CreationPage from "@/components/CreationPage/index.vue";
 import GenerationDialog from "@/components/GenerationDialog/index.vue";
 import useCreationQuote from "@/hooks/useCreationQuote";
+import useImageUpload from "@/hooks/useImageUpload";
 import useTaskActions from "@/hooks/useTaskActions";
 import useTaskPolling from "@/hooks/useTaskPolling";
 import { loadPointsBalance } from "@/stores";
-import { chooseSingleImage } from "@/utils/image-picker";
 import {
   getEditingDraft,
   clearEditingDraft,
@@ -142,6 +146,7 @@ const promptLimit = 200;
 const progressNote = "已投入云端淬炼池，离开页面不影响任务进度。";
 const prompt = ref("");
 const selectedImage = ref(null);
+const taskOriginalImage = ref(null);
 const isSavingDraft = ref(false);
 const editingDraft = getEditingDraft();
 if (editingDraft?.task_type === "optimization") {
@@ -153,7 +158,6 @@ if (editingDraft?.task_type === "optimization") {
     };
 }
 const isSubmitting = ref(false);
-const isUploading = ref(false);
 const isProgressVisible = ref(false);
 const taskId = ref("");
 const taskProgress = ref(0);
@@ -267,28 +271,13 @@ const { cancelTask, retryTask, isCanceling, isRetrying } = useTaskActions({
   },
 });
 
-// 从系统相册或相机选择图片并上传，失败时保留已有图片
-const chooseImage = async () => {
-  if (isUploading.value || isSubmitting.value) return;
-  isUploading.value = true;
-  try {
-    const image = await chooseSingleImage();
-    const uploaded = await uploadImage({
-      file_path: image.path,
-      name: image.name,
-    });
-    if (!uploaded?.upload_id) throw new Error("上传结果无效");
-    selectedImage.value = { ...image, uploadId: uploaded.upload_id };
-  } catch (error) {
-    if (!String(error?.errMsg || "").includes("cancel")) {
-      uni.showToast({
-        title: getErrorMessage(error, "选择图片失败"),
-        icon: "none",
-      });
-    }
-  } finally {
-    isUploading.value = false;
-  }
+const { isUploading, uploadProgress, canRetryUpload, chooseImage, retryUpload, cancelUpload } = useImageUpload((image) => {
+  selectedImage.value = image;
+});
+
+// 提交任务时禁止更换图片。
+const handleChooseImage = () => {
+  if (!isSubmitting.value) chooseImage();
 };
 
 // 保存优化草稿，只记录已上传的资源标识。
@@ -329,15 +318,16 @@ const startOptimization = async () => {
   }
 
   isSubmitting.value = true;
+  const submittedImage = { ...selectedImage.value };
 
   try {
     const task = await submitImageOptimization({
       ...(USE_MOCK
         ? {
             image_path:
-              selectedImage.value.path || selectedImage.value.uploadId,
+              submittedImage.path || submittedImage.uploadId,
           }
-        : { upload_id: selectedImage.value.uploadId }),
+        : { upload_id: submittedImage.uploadId }),
       prompt: prompt.value.trim(),
       ...(getEditingDraft()?.task_type === "optimization"
         ? { draft_id: getEditingDraft().id }
@@ -350,6 +340,7 @@ const startOptimization = async () => {
     }
 
     clearEditingDraft();
+    taskOriginalImage.value = submittedImage;
     taskId.value = task.task_id;
     taskProgress.value = 0;
     taskStatus.value = TASK_STATUS.PROCESSING;

@@ -26,9 +26,16 @@
           <template v-if="isCompleted && resultUrl">
             <video
               v-if="currentType === 'video'"
+              :key="videoKey"
               class="result-video"
               :src="resultUrl"
               controls
+              @error="handleVideoError"
+            />
+            <image-comparison
+              v-else-if="currentType === 'optimization' && originalId"
+              :original-id="originalId"
+              :result-url="resultUrl"
             />
             <image
               v-else
@@ -37,6 +44,12 @@
               mode="aspectFit"
               @tap="previewResult"
             />
+            <view v-if="currentType === 'video' && videoError" class="video-error">
+              <text>视频播放失败，链接可能已过期</text>
+              <app-flow-button variant="secondary" :loading="isRetryingVideo" @click="retryVideo">
+                重新加载
+              </app-flow-button>
+            </view>
             <text class="result-hint">{{ typeConfig.resultHint }}</text>
             <view v-if="canRename" class="media-actions">
               <app-flow-button :loading="isSaving" @click="saveResult">{{
@@ -48,6 +61,10 @@
                 @click="shareResult"
                 >分享作品</app-flow-button
               >
+            </view>
+            <view v-if="isSaving" class="download-status">
+              <text>{{ savePhase === "saving" ? "正在保存到相册…" : downloadProgress === null ? "正在准备下载…" : `下载中 ${downloadProgress}%` }}</text>
+              <button v-if="savePhase !== 'saving'" @tap="cancelSave">取消下载</button>
             </view>
           </template>
           <!-- 进度中展示进度环，任务结束后展示状态标签与提示 -->
@@ -120,12 +137,26 @@
         </view>
       </template>
     </app-bottom-sheet>
+    <app-bottom-sheet v-if="isShareVisible" title="分享作品" placement="center" @close="closeShare">
+      <text class="share-note">分享的是媒体原始链接，可能过期，请只分享给信任的人。</text>
+      <template #footer>
+        <view class="share-actions">
+          <!-- #ifdef APP-PLUS -->
+          <app-flow-button @click="shareWithSystem">系统分享</app-flow-button>
+          <!-- #endif -->
+          <!-- #ifdef H5 -->
+          <app-flow-button v-if="canUseWebShare" @click="shareWithSystem">系统分享</app-flow-button>
+          <!-- #endif -->
+          <app-flow-button variant="secondary" @click="copyShareLink">复制链接</app-flow-button>
+        </view>
+      </template>
+    </app-bottom-sheet>
     <app-bottom-nav active="works" desktop-only />
   </view>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 import { TASK_STATUS } from "@/apis/constants";
 import { getLibraryWorkMedia, updateLibraryWorkTitle } from "@/apis/creation";
@@ -135,6 +166,7 @@ import { getVideoTaskStatus } from "@/apis/video-creation";
 import AppBottomSheet from "@/components/AppBottomSheet/index.vue";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppFlowButton from "@/components/AppFlowButton/index.vue";
+import ImageComparison from "@/components/ImageComparison/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
 import useTaskActions from "@/hooks/useTaskActions";
 import useTaskPolling from "@/hooks/useTaskPolling";
@@ -218,10 +250,25 @@ const renameTitle = ref("");
 const renameError = ref("");
 const isRenaming = ref(false);
 const isSaving = ref(false);
+const savePhase = ref("");
+const downloadProgress = ref(null);
+let saveController = null;
+let saveGeneration = 0;
 const isSharing = ref(false);
+const isShareVisible = ref(false);
+const shareUrl = ref("");
+let shareGeneration = 0;
+// #ifdef H5
+const canUseWebShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+// #endif
 const status = ref(TASK_STATUS.PENDING);
 const progress = ref(0);
 const resultUrl = ref("");
+const originalId = ref("");
+const videoError = ref(false);
+const videoKey = ref(0);
+const isRetryingVideo = ref(false);
+let videoRequestId = 0;
 const failureMessage = ref("");
 const costPoints = ref(null);
 const refundPoints = ref(0);
@@ -347,6 +394,7 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
     syncTaskType(data);
     syncTaskCost(data);
     syncTaskBilling(data);
+    originalId.value = String(data.original_upload_id || "");
     status.value = data.status || TASK_STATUS.PROCESSING;
     progress.value = Number(data.progress) || 0;
 
@@ -452,51 +500,152 @@ const submitRename = async () => {
   }
 };
 
-// 保存媒体文件到设备，H5 下载受浏览器跨域策略限制。
+// 取消下载并让未完成的请求结果失效。
+const cancelSave = () => {
+  saveGeneration += 1;
+  saveController?.abort();
+  saveController = null;
+  isSaving.value = false;
+  savePhase.value = "";
+};
+
+// 保存媒体文件并展示下载进度。
 const saveResult = async () => {
   if (isSaving.value) return;
+  const current = ++saveGeneration;
+  saveController = new AbortController();
+  const signal = saveController.signal;
   isSaving.value = true;
+  savePhase.value = "downloading";
+  downloadProgress.value = null;
   try {
     const media = await getLibraryWorkMedia({ workId: props.workId });
-    if (!/^https?:\/\//i.test(media.media_url || ""))
-      throw new Error("媒体地址不可用");
-    await saveWorkMedia(media);
-    uni.showToast({ title: "保存成功", icon: "none" });
+    if (current !== saveGeneration || signal.aborted) return;
+    if (!/^https?:\/\//i.test(media.media_url || "")) throw new Error("媒体地址不可用");
+    await saveWorkMedia(media, {
+      signal,
+      onProgress: (progress) => {
+        if (current === saveGeneration) downloadProgress.value = progress;
+      },
+      onSaving: () => {
+        if (current === saveGeneration) savePhase.value = "saving";
+      },
+    });
+    if (current !== saveGeneration) return;
+    // #ifdef H5
+    uni.showToast({ title: "已开始下载", icon: "none" });
+    // #endif
+    // #ifndef H5
+    uni.showToast({ title: "已保存到相册", icon: "none" });
+    // #endif
   } catch (error) {
-    if (!isApiError(error))
-      uni.showToast({
-        title: getErrorMessage(error, "保存失败，请检查权限或稍后重试"),
-        icon: "none",
-      });
+    if (current === saveGeneration && !signal.aborted && !isApiError(error)) {
+      uni.showToast({ title: getErrorMessage(error, "保存失败，请稍后重试"), icon: "none" });
+    }
   } finally {
-    isSaving.value = false;
+    if (current === saveGeneration) {
+      saveController = null;
+      isSaving.value = false;
+      savePhase.value = "";
+    }
   }
 };
 
-// 复制媒体链接供分享，链接有效期由媒体服务决定。
+// 获取本人作品地址后展示分享选择，明确提醒链接有效期。
 const shareResult = async () => {
   if (isSharing.value) return;
+  const current = ++shareGeneration;
   isSharing.value = true;
   try {
     const media = await getLibraryWorkMedia({ workId: props.workId });
-    if (!/^https?:\/\//i.test(media.media_url || ""))
-      throw new Error("媒体地址不可用");
-    await new Promise((resolve, reject) =>
-      uni.setClipboardData({
-        data: media.media_url,
-        success: resolve,
-        fail: reject,
-      }),
-    );
-    uni.showToast({ title: "链接已复制，可能过期", icon: "none" });
+    if (current !== shareGeneration) return;
+    if (!/^https?:\/\//i.test(media.media_url || "")) throw new Error("媒体地址不可用");
+    shareUrl.value = media.media_url;
+    isShareVisible.value = true;
   } catch (error) {
-    if (!isApiError(error))
-      uni.showToast({
-        title: getErrorMessage(error, "分享失败，请稍后重试"),
-        icon: "none",
-      });
+    if (current === shareGeneration && !isApiError(error)) {
+      uni.showToast({ title: getErrorMessage(error, "分享失败，请稍后重试"), icon: "none" });
+    }
   } finally {
-    isSharing.value = false;
+    if (current === shareGeneration) isSharing.value = false;
+  }
+};
+
+// 关闭分享弹窗并清除临时链接。
+const closeShare = () => {
+  isShareVisible.value = false;
+  shareUrl.value = "";
+};
+
+// 复制媒体链接；链接有效期由媒体服务决定。
+const copyShareLink = () => {
+  if (!shareUrl.value) return;
+  uni.setClipboardData({
+    data: shareUrl.value,
+    success: () => {
+      closeShare();
+      uni.showToast({ title: "链接已复制，可能过期", icon: "none" });
+    },
+    fail: () => uni.showToast({ title: "复制失败，请重试", icon: "none" }),
+  });
+};
+
+// 系统分享由用户再次点击触发，满足浏览器的用户交互要求。
+const shareWithSystem = async () => {
+  if (!shareUrl.value) return;
+  // #ifdef H5
+  try {
+    await navigator.share({ title: displayTitle.value || "我的作品", url: shareUrl.value });
+    closeShare();
+  } catch (error) {
+    if (error?.name !== "AbortError") uni.showToast({ title: "系统分享不可用，可复制链接", icon: "none" });
+  }
+  // #endif
+  // #ifdef APP-PLUS
+  if (typeof uni.shareWithSystem !== "function") {
+    uni.showToast({ title: "系统分享不可用，可复制链接", icon: "none" });
+    return;
+  }
+  uni.shareWithSystem({
+    type: "text",
+    summary: `${displayTitle.value || "我的作品"} ${shareUrl.value}`,
+    href: shareUrl.value,
+    success: () => closeShare(),
+    fail: (error) => {
+      if (!String(error?.errMsg || "").toLowerCase().includes("cancel")) {
+        uni.showToast({ title: "系统分享不可用，可复制链接", icon: "none" });
+      }
+    },
+  });
+  // #endif
+};
+
+// 展示视频播放失败状态。
+const handleVideoError = () => {
+  videoError.value = true;
+};
+
+// 重新查询媒体地址并重新加载视频。
+const retryVideo = async () => {
+  if (isRetryingVideo.value) return;
+  isRetryingVideo.value = true;
+  const requestId = ++videoRequestId;
+  try {
+    const data = props.from === "library" && Number(props.workId) > 0
+      ? await getLibraryWorkMedia({ workId: props.workId })
+      : await fetchTaskStatus();
+    if (requestId !== videoRequestId) return;
+    const url = data.media_url || data.result_urls?.[0];
+    if (!url) throw new Error("视频地址不可用，请稍后重试");
+    resultUrl.value = url;
+    videoError.value = false;
+    videoKey.value += 1;
+  } catch (error) {
+    if (requestId === videoRequestId && !isApiError(error)) {
+      uni.showToast({ title: getErrorMessage(error, "视频加载失败"), icon: "none" });
+    }
+  } finally {
+    if (requestId === videoRequestId) isRetryingVideo.value = false;
   }
 };
 
@@ -535,6 +684,12 @@ watch(
     displayTitle.value = title;
   },
 );
+
+onUnmounted(() => {
+  cancelSave();
+  videoRequestId += 1;
+  shareGeneration += 1;
+});
 
 onMounted(() => {
   if (!props.taskId) {
@@ -762,11 +917,49 @@ onMounted(() => {
   background: #000;
 }
 
+.share-note {
+  display: block;
+  color: $color-muted;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.share-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16rpx;
+}
+
+.download-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin-top: 12rpx;
+  color: $color-muted;
+  font-size: 24rpx;
+
+  button {
+    margin: 0;
+    font-size: 24rpx;
+  }
+}
+
 .media-actions {
   display: flex;
   justify-content: center;
   gap: 16rpx;
   margin-top: 20rpx;
+}
+
+.video-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  margin-top: 16rpx;
+  color: $color-danger;
+  font-size: 24rpx;
 }
 
 .result-hint {

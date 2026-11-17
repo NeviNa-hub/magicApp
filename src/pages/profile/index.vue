@@ -8,8 +8,9 @@
         <view class="profile-card">
           <view class="identity">
             <view class="avatar">
+              <image v-if="avatarUrl" class="avatar-image" :src="avatarUrl" mode="aspectFill" />
               <!-- #ifdef H5 -->
-              <el-icon><User /></el-icon>
+              <el-icon v-if="!avatarUrl"><User /></el-icon>
               <!-- #endif -->
             </view>
             <view class="identity-copy">
@@ -18,6 +19,8 @@
                 <text class="identity-tag">灵感创作者</text>
               </view>
               <text class="account">账号 {{ accountText }}</text>
+              <button v-if="profileLoaded" class="edit-profile" @tap="openProfileEditor">编辑资料</button>
+              <button v-else class="edit-profile" @tap="loadProfile">重新加载资料</button>
             </view>
           </view>
 
@@ -73,6 +76,24 @@
       </button>
     </view>
 
+    <app-bottom-sheet v-if="isProfileEditorVisible" title="编辑资料" placement="center" :close-on-mask="!isSavingProfile && !isUploading" @close="closeProfileEditor">
+      <view class="profile-form">
+        <text>昵称</text>
+        <input v-model="profileName" maxlength="64" placeholder="请输入昵称" />
+        <text v-if="profileError" class="profile-error">{{ profileError }}</text>
+        <button :disabled="isSavingProfile || isUploading" @tap="chooseImage">{{ isUploading ? "头像上传中" : "选择头像" }}</button>
+        <text v-if="isUploading">{{ uploadProgress === null ? "正在准备图片…" : `上传中 ${uploadProgress}%` }}</text>
+        <button v-if="isUploading" @tap="cancelUpload">取消上传</button>
+        <button v-else-if="canRetryUpload" @tap="retryUpload">重试上传</button>
+        <image v-if="editAvatarUrl" class="avatar-preview" :src="editAvatarUrl" mode="aspectFill" />
+      </view>
+      <template #footer>
+        <view class="profile-form-actions">
+          <button :disabled="isSavingProfile || isUploading" @tap="closeProfileEditor">取消</button>
+          <button :disabled="isSavingProfile || isUploading" :loading="isSavingProfile" @tap="saveProfile">保存</button>
+        </view>
+      </template>
+    </app-bottom-sheet>
     <points-dialog v-model="isPointsDialogVisible" />
 
     <app-bottom-nav active="profile" />
@@ -80,7 +101,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 
 // #ifdef H5
 import {
@@ -95,15 +116,21 @@ import {
 // #endif
 
 import { logoutUser } from "@/apis/auth";
+import { getProfile, updateProfile } from "@/apis/account";
+import { API_BASE_URL, USE_MOCK } from "@/apis/config";
 import { PAGE_PATHS } from "@/apis/constants";
+import AppBottomSheet from "@/components/AppBottomSheet/index.vue";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
 import PointsDialog from "@/components/PointsDialog/index.vue";
+import useImageUpload from "@/hooks/useImageUpload";
+import { getToken } from "@/utils/auth";
 import {
   clearSession,
   loadPointsBalance,
   pointsState,
   sessionState,
+  updateSessionUser,
 } from "@/stores";
 
 const menuItems = [
@@ -144,12 +171,102 @@ const MENU_ICONS = {
 
 const isPointsDialogVisible = ref(false);
 const isLoggingOut = ref(false);
+const profileLoaded = ref(false);
+const isProfileEditorVisible = ref(false);
+const isSavingProfile = ref(false);
+const profileName = ref("");
+const profileError = ref("");
+const avatarId = ref(null);
+const editAvatarId = ref(null);
+const avatarUrl = ref("");
+const editAvatarUrl = ref("");
+let avatarTask = null;
+let profileGeneration = 0;
+
+const { isUploading, uploadProgress, canRetryUpload, chooseImage, retryUpload, cancelUpload, resetUpload } = useImageUpload((image) => {
+  editAvatarId.value = image.uploadId;
+  editAvatarUrl.value = image.path;
+});
 
 const usernameText = computed(() => sessionState.user?.username || "—");
 const accountText = computed(() => sessionState.user?.account || "—");
 const pointsText = computed(() =>
   pointsState.balance === null ? "—" : pointsState.balance,
 );
+
+// 读取本人头像，访问私有资源时通过请求头传递凭据。
+const loadAvatar = (id) => {
+  avatarTask?.abort();
+  avatarUrl.value = "";
+  if (!id || USE_MOCK) return;
+  const current = profileGeneration;
+  const token = getToken();
+  if (!token) return;
+  avatarTask = uni.downloadFile({
+    url: `${API_BASE_URL}/uploads/images/${encodeURIComponent(id)}`,
+    header: { Authorization: `Bearer ${token}` },
+    success: (result) => {
+      if (current === profileGeneration && result.statusCode === 200) avatarUrl.value = result.tempFilePath;
+    },
+  });
+};
+
+// 读取最新资料，避免依赖本地缓存作为服务端状态。
+const loadProfile = async () => {
+  const current = ++profileGeneration;
+  try {
+    const data = await getProfile();
+    if (current !== profileGeneration) return;
+    avatarId.value = data.avatar_asset_id;
+    updateSessionUser(data);
+    profileLoaded.value = true;
+    loadAvatar(avatarId.value);
+  } catch {
+    if (current === profileGeneration) profileLoaded.value = false;
+  }
+};
+
+// 打开编辑弹窗并恢复服务端资料。
+const openProfileEditor = () => {
+  resetUpload();
+  profileName.value = sessionState.user?.username || "";
+  profileError.value = "";
+  editAvatarId.value = avatarId.value;
+  editAvatarUrl.value = avatarUrl.value;
+  isProfileEditorVisible.value = true;
+};
+
+// 关闭弹窗时取消未完成的头像上传。
+const closeProfileEditor = () => {
+  if (isSavingProfile.value) return;
+  resetUpload();
+  isProfileEditorVisible.value = false;
+};
+
+// 校验并保存昵称和头像。
+const saveProfile = async () => {
+  if (isSavingProfile.value || isUploading.value) return;
+  const username = profileName.value.trim();
+  if (!username || username.length > 64) {
+    profileError.value = "请输入 1 至 64 字的昵称";
+    return;
+  }
+  isSavingProfile.value = true;
+  const current = profileGeneration;
+  try {
+    const data = await updateProfile({ username, avatar_asset_id: editAvatarId.value ? (USE_MOCK ? editAvatarId.value : Number(editAvatarId.value)) : null });
+    if (current !== profileGeneration) return;
+    updateSessionUser(data);
+    avatarId.value = data.avatar_asset_id;
+    avatarUrl.value = editAvatarUrl.value;
+    isProfileEditorVisible.value = false;
+    uni.showToast({ title: "资料已保存", icon: "none" });
+  } catch (error) {
+    if (current === profileGeneration) profileError.value = error?.message || "保存失败，请重试";
+  } finally {
+    if (current === profileGeneration) isSavingProfile.value = false;
+  }
+};
 
 // 打开灵感点流水弹窗，数据由弹窗组件加载。
 const openPointsDialog = () => {
@@ -211,6 +328,12 @@ const handleLogout = async () => {
 onMounted(() => {
   // 余额走共享缓存（登录时已拉取），本页不再额外请求积分接口。
   loadPointsBalance();
+  loadProfile();
+});
+
+onUnmounted(() => {
+  profileGeneration += 1;
+  avatarTask?.abort();
 });
 </script>
 
@@ -251,6 +374,22 @@ onMounted(() => {
   font-size: 44rpx;
   box-shadow: 0 8rpx 20rpx rgba(184, 134, 78, 0.3);
 }
+
+.avatar-image { width: 100%; height: 100%; border-radius: 50%; }
+
+.edit-profile { margin: 8rpx 0 0; padding: 0; background: transparent; color: #8a6840; font-size: 24rpx; text-align: left; line-height: 1.5; }
+
+.edit-profile::after { border: 0; }
+
+.profile-form { display: flex; flex-direction: column; gap: 16rpx; }
+
+.profile-form input { padding: 14rpx; border: 1rpx solid #d8d2c5; border-radius: 10rpx; }
+
+.profile-error { color: #b93a2f; font-size: 24rpx; }
+
+.avatar-preview { width: 96rpx; height: 96rpx; border-radius: 50%; }
+
+.profile-form-actions { display: flex; gap: 16rpx; }
 
 .identity-copy {
   flex: 1;

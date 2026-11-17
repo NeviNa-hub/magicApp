@@ -108,7 +108,16 @@ const resolveTaskAction = (taskId, action) => {
 const draftStore = new Map();
 let draftSequence = 0;
 
+let mockProfile = { user_id: MOCK_LOGIN.user_id, username: "体验用户", account: "demo", avatar_asset_id: null };
+
 const exactRoutes = {
+  "GET /profile": () => ok({ ...mockProfile }),
+  "PUT /profile": (params) => {
+    const username = typeof params.username === "string" ? params.username.trim() : "";
+    if (!username || username.length > 64) return fail(ERROR_CODES.INVALID_PARAMS, "昵称须为 1 至 64 字");
+    mockProfile = { ...mockProfile, username, avatar_asset_id: params.avatar_asset_id || null };
+    return ok({ ...mockProfile });
+  },
   "GET /drafts": (params) => {
     const page = Math.max(1, Number(params.page) || 1);
     const pageSize = Math.max(1, Number(params.page_size) || 10);
@@ -139,6 +148,7 @@ const exactRoutes = {
       return fail(ERROR_CODES.INVALID_PARAMS, "缺少必要参数：account/password");
     }
 
+    mockProfile = { user_id: MOCK_LOGIN.user_id, username: params.account, account: params.account, avatar_asset_id: null };
     // 本地 Mock 不校验口令，任意账号密码均可登录，便于离线开发
     return ok({
       ...MOCK_LOGIN,

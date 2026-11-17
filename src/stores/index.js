@@ -38,6 +38,17 @@ export const initializeSession = (data) => {
   uni.setStorageSync(SESSION_USER_STORAGE_KEY, sessionState.user);
 };
 
+/**
+ * 同步服务端资料中的展示字段。
+ * @param {Object} data 服务端用户资料。
+ * @returns {void}
+ */
+export const updateSessionUser = (data) => {
+  if (!sessionState.user) return;
+  sessionState.user = { ...sessionState.user, username: data.username };
+  uni.setStorageSync(SESSION_USER_STORAGE_KEY, sessionState.user);
+};
+
 // 清理登录凭据与用户资料，同时清除最近页面记录，避免下个账号恢复到旧页面。
 export const clearSession = () => {
   removeToken();

@@ -10,6 +10,9 @@
       <video class="result-image" :src="resultUrl" controls />
       <text class="result-hint">视频链接可能过期，请及时保存</text>
     </template>
+    <template v-else-if="status === 'completed' && resultUrl && type === 'optimization'">
+      <image-comparison :original-url="originalUrl" :original-id="originalId" :result-url="resultUrl" />
+    </template>
     <template v-else-if="status === 'completed' && resultUrl">
       <view class="result-preview">
         <image
@@ -76,6 +79,7 @@ import { computed } from "vue";
 import { TASK_STATUS } from "@/apis/constants";
 import AppBottomSheet from "@/components/AppBottomSheet/index.vue";
 import AppFlowButton from "@/components/AppFlowButton/index.vue";
+import ImageComparison from "@/components/ImageComparison/index.vue";
 
 // #ifdef H5
 import { Collection, House } from "@element-plus/icons-vue";
@@ -89,6 +93,8 @@ import { Collection, House } from "@element-plus/icons-vue";
  * @param note 弹窗提示。
  * @param status 任务状态，完成时切换为结果展示。
  * @param resultUrl 生成结果地址，任务完成时展示。
+ * @param originalUrl 优化原图本地地址。
+ * @param originalId 优化原图上传标识。
  * @param canceling 是否正在提交取消请求。
  * @param retrying 是否正在提交重试请求。
  */
@@ -121,6 +127,8 @@ const props = defineProps({
     type: String,
     default: "",
   },
+  originalUrl: { type: String, default: "" },
+  originalId: { type: String, default: "" },
   canceling: {
     type: Boolean,
     default: false,

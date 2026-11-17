@@ -16,6 +16,7 @@
           class="search-input"
           placeholder="搜索标题或提示词"
           confirm-type="search"
+          @input="scheduleSearch"
           @confirm="applySearch"
         />
         <button class="filter-button" @click="applySearch">搜索</button>
@@ -153,8 +154,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { computed, onUnmounted, ref } from "vue";
+import { onShow, onUnload } from "@dcloudio/uni-app";
 // #ifdef H5
 import { Delete, View } from "@element-plus/icons-vue";
 // #endif
@@ -198,6 +199,7 @@ const loadError = ref(false);
 const deletingWorkId = ref(null);
 
 let requestToken = 0;
+let searchTimer = null;
 
 const hasMore = computed(() => works.value.length < pageInfo.value.total);
 
@@ -277,8 +279,23 @@ const applyFilters = () => {
 
 // 按输入内容重新搜索作品。
 const applySearch = () => {
+  clearTimeout(searchTimer);
   keyword.value = keywordInput.value.trim();
   loadLibraryData(true);
+};
+
+// 输入变化后延迟搜索，并使旧结果立即失效。
+const scheduleSearch = () => {
+  clearTimeout(searchTimer);
+  requestToken += 1;
+  isLoading.value = true;
+  searchTimer = setTimeout(applySearch, 300);
+};
+
+// 离开页面时清除定时器并使在途响应失效。
+const cleanupSearch = () => {
+  clearTimeout(searchTimer);
+  requestToken += 1;
 };
 
 /**
@@ -404,6 +421,9 @@ const handleDelete = async (work) => {
 onShow(() => {
   loadLibraryData(true);
 });
+
+onUnload(cleanupSearch);
+onUnmounted(cleanupSearch);
 </script>
 
 <style scoped lang="scss">

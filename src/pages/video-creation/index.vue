@@ -51,12 +51,15 @@
             <text class="image-title">{{ imageTitle }}</text>
             <text class="image-hint">{{ imageHint }}</text>
           </view>
-          <button class="image-pick-button" @click="chooseImage">
+          <button class="image-pick-button" @click="handleChooseImage">
             <!-- #ifdef H5 -->
             <el-icon><Upload /></el-icon>
             <!-- #endif -->
             {{ isUploading ? "上传中…" : selectedImage ? "更换" : "选图" }}
           </button>
+          <text v-if="isUploading">{{ uploadProgress === null ? "正在准备图片…" : `上传中 ${uploadProgress}%` }}</text>
+          <button v-if="isUploading" @click.stop="cancelUpload">取消上传</button>
+          <button v-else-if="canRetryUpload" @click.stop="retryUpload">重试上传</button>
         </view>
       </app-config-card>
 
@@ -147,13 +150,12 @@ import {
 } from "@element-plus/icons-vue";
 // #endif
 
-import { uploadImage } from "@/apis/upload";
+import useImageUpload from "@/hooks/useImageUpload";
 import AppConfigCard from "@/components/AppConfigCard/index.vue";
 import AppFlowButton from "@/components/AppFlowButton/index.vue";
 import AppImage from "@/components/AppImage/index.vue";
 import CreationPage from "@/components/CreationPage/index.vue";
 import { DRAFT_KEYS, saveCreationDraft } from "@/utils/creation-draft";
-import { chooseSingleImage } from "@/utils/image-picker";
 import { appendPromptText, polishPromptText } from "@/utils/prompt";
 import { getErrorMessage } from "@/utils/request";
 
@@ -195,7 +197,6 @@ const polishSuffix = "水波微澜，晨雾轻笼，气韵徐徐流转";
 const selectedImage = ref(null);
 const isSavingDraft = ref(false);
 const isSubmitting = ref(false);
-const isUploading = ref(false);
 const formData = reactive({
   ratio: "16:9",
   mode: "text",
@@ -233,29 +234,14 @@ const polishPrompt = () => {
   );
 };
 
-// 从系统相册或相机选择图卷并上传，失败时保留已有图卷
-const chooseImage = async () => {
-  if (isUploading.value || isSubmitting.value) return;
-  isUploading.value = true;
-  try {
-    const image = await chooseSingleImage();
-    const uploaded = await uploadImage({
-      file_path: image.path,
-      name: image.name,
-    });
-    if (!uploaded?.upload_id) throw new Error("上传结果无效");
-    selectedImage.value = { ...image, uploadId: uploaded.upload_id };
-    formData.imagePath = image.path;
-  } catch (error) {
-    if (!String(error?.errMsg || "").includes("cancel")) {
-      uni.showToast({
-        title: getErrorMessage(error, "选择图卷失败"),
-        icon: "none",
-      });
-    }
-  } finally {
-    isUploading.value = false;
-  }
+const { isUploading, uploadProgress, canRetryUpload, chooseImage, retryUpload, cancelUpload } = useImageUpload((image) => {
+  selectedImage.value = image;
+  formData.imagePath = image.path;
+});
+
+// 提交任务时禁止更换图片。
+const handleChooseImage = () => {
+  if (!isSubmitting.value) chooseImage();
 };
 
 // 保存视频创作参数。
