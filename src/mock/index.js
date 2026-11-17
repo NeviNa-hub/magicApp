@@ -3,7 +3,8 @@
  */
 import { API_PATHS, ERROR_CODES, PAGE_DEFAULTS, TASK_STATUS } from "../apis/constants.js";
 import { ACCOUNT_OVERVIEW, MOCK_LOGIN, POINTS_INFO } from "./account.js";
-import { HOME_OVERVIEW, WORKBENCH_OVERVIEW, buildLibraryData, updateMockWork, deleteMockWork } from "./creation.js";
+import { HOME_OVERVIEW, WORKBENCH_OVERVIEW, buildLibraryData, updateMockWork,
+  getMockWorkMedia, deleteMockWork } from "./creation.js";
 import {
   IMAGE_OPTIMIZATION_OPTIONS,
   buildOptimizationTaskStatus,
@@ -196,6 +197,16 @@ const exactRoutes = {
 };
 
 const taskRoutes = [
+  {
+    method: "GET",
+    pattern: /^\/library\/works\/([^/]+)\/media$/,
+    handler: (workId) => {
+      const work = getMockWorkMedia(workId);
+      return work && work.media_url
+        ? ok({ work_id: work.work_id, media_url: work.media_url, media_type: work.type_name === "视频创作" ? "video" : "image" })
+        : fail(ERROR_CODES.NOT_FOUND, "作品媒体不存在");
+    },
+  },
   {
     method: "DELETE",
     pattern: /^\/library\/works\/([^/]+)$/,

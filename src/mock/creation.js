@@ -207,3 +207,11 @@ export const deleteMockWork = (workId) => {
   LIBRARY_WORKS.splice(index, 1);
   return true;
 };
+
+/**
+ * 读取模拟作品的媒体信息。
+ * @param {string} workId 作品标识。
+ * @returns {Object|null} 作品信息。
+ */
+export const getMockWorkMedia = (workId) =>
+  LIBRARY_WORKS.find((item) => String(item.work_id) === String(workId) && item.status === "completed") || null;

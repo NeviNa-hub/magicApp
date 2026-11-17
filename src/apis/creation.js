@@ -35,6 +35,7 @@ export const deleteLibraryWork = (params = {}) => {
   return request({
     url: `/library/works/${encodeURIComponent(params.workId)}`,
     method: "DELETE",
+    params: { ...params },
   });
 };
 
@@ -51,3 +52,15 @@ export const updateLibraryWorkTitle = (params = {}, data = {}) =>
     data,
   });
 
+
+/**
+ * 获取本人作品的媒体地址。
+ * @param {Object} params 作品标识。
+ * @returns {Promise<Object>} 媒体信息。
+ */
+export const getLibraryWorkMedia = (params = {}) =>
+  request({
+    url: `/library/works/${encodeURIComponent(params.workId)}/media`,
+    method: "GET",
+    params: { ...params },
+  });

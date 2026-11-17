@@ -16,7 +16,13 @@
             </view>
             <text class="detail-cost">{{ costText }}</text>
           </view>
-          <text v-if="title" class="detail-work">{{ title }}</text>
+          <view v-if="displayTitle || canRename" class="detail-work-row">
+            <text class="detail-work">{{ displayTitle }}</text>
+            <button v-if="canRename" class="rename-trigger" @tap="openRename">
+              <view class="rename-icon"></view>
+              <text class="rename-label">修改名称</text>
+            </button>
+          </view>
           <template v-if="isCompleted && resultUrl">
             <video
               v-if="currentType === 'video'"
@@ -32,6 +38,17 @@
               @tap="previewResult"
             />
             <text class="result-hint">{{ typeConfig.resultHint }}</text>
+            <view v-if="canRename" class="media-actions">
+              <app-flow-button :loading="isSaving" @click="saveResult">{{
+                currentType === "video" ? "保存视频" : "保存图片"
+              }}</app-flow-button>
+              <app-flow-button
+                variant="secondary"
+                :loading="isSharing"
+                @click="shareResult"
+                >分享作品</app-flow-button
+              >
+            </view>
           </template>
           <!-- 进度中展示进度环，任务结束后展示状态标签与提示 -->
           <template v-else-if="!isFinished">
@@ -75,23 +92,54 @@
         返回工作台
       </app-flow-button>
     </view>
+    <app-bottom-sheet
+      v-if="isRenameVisible"
+      title="修改作品标题"
+      placement="center"
+      :close-on-mask="!isRenaming"
+      @close="closeRename"
+    >
+      <input
+        v-model="renameTitle"
+        class="rename-input"
+        maxlength="50"
+        placeholder="请输入作品标题"
+      />
+      <text v-if="renameError" class="rename-error">{{ renameError }}</text>
+      <template #footer>
+        <view class="rename-actions">
+          <app-flow-button
+            variant="secondary"
+            :disabled="isRenaming"
+            @click="closeRename"
+            >取消</app-flow-button
+          >
+          <app-flow-button :loading="isRenaming" @click="submitRename"
+            >保存</app-flow-button
+          >
+        </view>
+      </template>
+    </app-bottom-sheet>
     <app-bottom-nav active="works" desktop-only />
   </view>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 import { TASK_STATUS } from "@/apis/constants";
+import { getLibraryWorkMedia, updateLibraryWorkTitle } from "@/apis/creation";
 import { getImageOptimizationTaskStatus } from "@/apis/image-optimization";
 import { getImageTaskStatus } from "@/apis/text-to-image";
 import { getVideoTaskStatus } from "@/apis/video-creation";
+import AppBottomSheet from "@/components/AppBottomSheet/index.vue";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppFlowButton from "@/components/AppFlowButton/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
 import useTaskActions from "@/hooks/useTaskActions";
 import useTaskPolling from "@/hooks/useTaskPolling";
 import { getErrorMessage, isApiError } from "@/utils/request";
+import { saveWorkMedia } from "@/utils/save-work-media";
 import {
   buildFailureNote,
   getTaskRefundPoints,
@@ -103,6 +151,7 @@ import {
  * @property {string} taskId 任务公开标识，用于查询进度与结果。
  * @property {string} type 任务类型：image、optimization 或 video。
  * @property {string} title 作品标题，为空时不展示。
+ * @property {string} workId 已完成作品的标识，用于修改标题。
  * @property {"creation" | "library"} from 入口来源，决定作品库按钮的文案与返回方式。
  */
 const props = defineProps({
@@ -118,6 +167,7 @@ const props = defineProps({
     type: String,
     default: "",
   },
+  workId: { type: String, default: "" },
   from: {
     type: String,
     default: "creation",
@@ -162,6 +212,13 @@ const currentType = ref(
     ? props.type
     : "image",
 );
+const displayTitle = ref(props.title);
+const isRenameVisible = ref(false);
+const renameTitle = ref("");
+const renameError = ref("");
+const isRenaming = ref(false);
+const isSaving = ref(false);
+const isSharing = ref(false);
 const status = ref(TASK_STATUS.PENDING);
 const progress = ref(0);
 const resultUrl = ref("");
@@ -176,6 +233,10 @@ const statusTag = computed(
   () => STATUS_TAGS[status.value] || STATUS_TAGS[TASK_STATUS.PENDING],
 );
 const isCompleted = computed(() => status.value === TASK_STATUS.COMPLETED);
+const canRename = computed(
+  () =>
+    props.from === "library" && Number(props.workId) > 0 && isCompleted.value,
+);
 const isFailed = computed(() => status.value === TASK_STATUS.FAILED);
 const isCanceled = computed(() => status.value === TASK_STATUS.CANCELED);
 const canCancel = computed(
@@ -358,6 +419,87 @@ const { cancelTask, retryTask, isCanceling, isRetrying } = useTaskActions({
   },
 });
 
+// 打开标题编辑并重置输入状态。
+const openRename = () => {
+  renameTitle.value = displayTitle.value;
+  renameError.value = "";
+  isRenameVisible.value = true;
+};
+
+// 提交期间保留弹窗，避免重复提交。
+const closeRename = () => {
+  if (!isRenaming.value) isRenameVisible.value = false;
+};
+
+// 校验并保存作品标题，成功后同步详情显示。
+const submitRename = async () => {
+  if (isRenaming.value || !canRename.value) return;
+  const title = renameTitle.value.trim();
+  if (!title) {
+    renameError.value = "请输入作品标题";
+    return;
+  }
+  isRenaming.value = true;
+  try {
+    await updateLibraryWorkTitle({ workId: props.workId }, { title });
+    displayTitle.value = title;
+    isRenameVisible.value = false;
+    uni.showToast({ title: "标题已修改", icon: "none" });
+  } catch (error) {
+    renameError.value = getErrorMessage(error, "修改失败，请重试");
+  } finally {
+    isRenaming.value = false;
+  }
+};
+
+// 保存媒体文件到设备，H5 下载受浏览器跨域策略限制。
+const saveResult = async () => {
+  if (isSaving.value) return;
+  isSaving.value = true;
+  try {
+    const media = await getLibraryWorkMedia({ workId: props.workId });
+    if (!/^https?:\/\//i.test(media.media_url || ""))
+      throw new Error("媒体地址不可用");
+    await saveWorkMedia(media);
+    uni.showToast({ title: "保存成功", icon: "none" });
+  } catch (error) {
+    if (!isApiError(error))
+      uni.showToast({
+        title: getErrorMessage(error, "保存失败，请检查权限或稍后重试"),
+        icon: "none",
+      });
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+// 复制媒体链接供分享，链接有效期由媒体服务决定。
+const shareResult = async () => {
+  if (isSharing.value) return;
+  isSharing.value = true;
+  try {
+    const media = await getLibraryWorkMedia({ workId: props.workId });
+    if (!/^https?:\/\//i.test(media.media_url || ""))
+      throw new Error("媒体地址不可用");
+    await new Promise((resolve, reject) =>
+      uni.setClipboardData({
+        data: media.media_url,
+        success: resolve,
+        fail: reject,
+      }),
+    );
+    uni.showToast({ title: "链接已复制，可能过期", icon: "none" });
+  } catch (error) {
+    if (!isApiError(error))
+      uni.showToast({
+        title: getErrorMessage(error, "分享失败，请稍后重试"),
+        icon: "none",
+      });
+  } finally {
+    isSharing.value = false;
+  }
+};
+
 // 预览生成结果大图
 const previewResult = () => {
   if (!resultUrl.value) {
@@ -386,6 +528,13 @@ const handleLibraryAction = () => {
 const goWorkbench = () => {
   uni.reLaunch({ url: "/pages/workbench/index" });
 };
+
+watch(
+  () => props.title,
+  (title) => {
+    displayTitle.value = title;
+  },
+);
 
 onMounted(() => {
   if (!props.taskId) {
@@ -489,14 +638,67 @@ onMounted(() => {
   @include numeric;
 }
 
-.detail-work {
-  display: block;
+.detail-work-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
   margin-top: 16rpx;
+}
+
+.detail-work {
+  flex: 1;
+  min-width: 0;
   color: $color-muted;
   font-size: 24rpx;
   line-height: 1.5;
   text-align: left;
   @include text-ellipsis;
+}
+
+.rename-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 60rpx;
+  height: 60rpx;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $color-primary;
+
+  &::after {
+    border: 0;
+  }
+}
+
+.rename-icon {
+  width: 24rpx;
+  height: 7rpx;
+  border: 2rpx solid currentColor;
+  border-radius: 2rpx;
+  transform: rotate(-45deg);
+}
+
+.rename-label {
+  display: none;
+}
+.rename-input {
+  padding: 16rpx;
+  border: 1rpx solid #ddd;
+  border-radius: 10rpx;
+}
+.rename-error {
+  display: block;
+  margin-top: 10rpx;
+  color: #b93a2f;
+  font-size: 24rpx;
+}
+.rename-actions {
+  display: flex;
+  gap: 16rpx;
+  justify-content: flex-end;
 }
 
 .progress-ring {
@@ -558,6 +760,13 @@ onMounted(() => {
   margin-top: 32rpx;
   border-radius: 20rpx;
   background: #000;
+}
+
+.media-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16rpx;
+  margin-top: 20rpx;
 }
 
 .result-hint {
@@ -633,7 +842,7 @@ onMounted(() => {
   }
 
   .detail-card.has-result .detail-head,
-  .detail-card.has-result .detail-work,
+  .detail-card.has-result .detail-work-row,
   .detail-card.has-result .result-hint {
     flex-shrink: 0;
   }
@@ -652,9 +861,32 @@ onMounted(() => {
     font-size: 13px;
   }
 
-  .detail-work {
+  .detail-work-row {
     margin-top: 10px;
+  }
+
+  .detail-work {
     font-size: 14px;
+  }
+
+  .rename-trigger {
+    width: auto;
+    height: auto;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid rgba(184, 134, 78, 0.35);
+    border-radius: 999px;
+    font-size: 13px;
+  }
+
+  .rename-icon {
+    width: 12px;
+    height: 4px;
+    border-width: 1px;
+  }
+
+  .rename-label {
+    display: block;
   }
 
   .progress-ring {
