@@ -52,11 +52,6 @@
  * @property {WorkbenchFrame[]} frames 分镜列表。
  * @property {WorkbenchDraft[]} drafts 草稿列表。
  *
- * @typedef {Object} LibraryTab
- * @property {string} status 作品状态。
- * @property {string} name 标签名称。
- * @property {number} count 作品数量。
- *
  * @typedef {Object} LibraryWork
  * @property {number} workId 作品标识。
  * @property {string} title 作品标题。
@@ -71,7 +66,6 @@
  *
  * @typedef {Object} LibraryResult
  * @property {string} summary 作品统计摘要。
- * @property {LibraryTab[]} tabs 状态标签与数量。
  * @property {PageInfo} pageInfo 分页信息。
  * @property {LibraryWork[]} works 当前页作品。
  * @property {LibraryGenerating|null} generating 生成中提示。

@@ -107,25 +107,6 @@ const LIBRARY_WORKS = [
   },
 ];
 
-const buildTabs = (works) => [
-  { status: "all", name: "全部", count: works.length },
-  {
-    status: "completed",
-    name: "已完成",
-    count: works.filter((item) => item.status === "completed").length,
-  },
-  {
-    status: "creating",
-    name: "创作中",
-    count: works.filter((item) => item.status === "creating").length,
-  },
-  {
-    status: "canceled",
-    name: "已取消",
-    count: works.filter((item) => item.status === "canceled").length,
-  },
-];
-
 /**
  * 按状态与分页规则生成作品库数据。
  * @param {Object} params 查询参数。
@@ -143,7 +124,6 @@ export const buildLibraryData = (params = {}, isEmpty = false) => {
   if (isEmpty) {
     return {
       summary: "暂无典藏 · 完成一次生图后自动归档",
-      tabs: buildTabs(LIBRARY_WORKS).map((tab) => ({ ...tab, count: 0 })),
       page_info: { page, page_size: pageSize, total: 0 },
       lists: [],
       generating: null,
@@ -152,17 +132,18 @@ export const buildLibraryData = (params = {}, isEmpty = false) => {
 
   const keyword = String(params.keyword || "").trim().toLowerCase();
   const typeNames = { image: "文字生图", optimization: "图片优化", video: "视频创作" };
-  const filteredWorks = LIBRARY_WORKS.filter((item) =>
-    (status === "all" || item.status === status) &&
+  const matchingWorks = LIBRARY_WORKS.filter((item) =>
     (!params.type || params.type === "all" || item.type_name === typeNames[params.type]) &&
     (!keyword || `${item.title} ${item.prompt || ""}`.toLowerCase().includes(keyword))
   ).sort((a, b) => params.sort === "oldest" ? a.created_at.localeCompare(b.created_at) : b.created_at.localeCompare(a.created_at));
+  const filteredWorks = matchingWorks.filter(
+    (item) => status === "all" || item.status === status
+  );
   const start = (page - 1) * pageSize;
   const creatingWork = LIBRARY_WORKS.find((item) => item.status === "creating");
 
   return {
     summary: `共 ${LIBRARY_WORKS.length} 幅典藏 · 1 幅研墨中`,
-    tabs: buildTabs(LIBRARY_WORKS),
     page_info: {
       page,
       page_size: pageSize,

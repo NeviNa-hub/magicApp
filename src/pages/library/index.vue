@@ -19,7 +19,37 @@
           @confirm="applySearch"
         />
         <button class="filter-button" @click="applySearch">搜索</button>
+        <!-- 桌面 H5 使用浏览器下拉框；手机 H5 与 App 使用下方 uni-app picker。 -->
+        <!-- #ifdef H5 -->
+        <select
+          v-model.number="typeIndex"
+          class="desktop-filter"
+          @change="applyFilters"
+        >
+          <option
+            v-for="(option, index) in typeOptions"
+            :key="option.value"
+            :value="index"
+          >
+            {{ option.label }}
+          </option>
+        </select>
+        <select
+          v-model.number="sortIndex"
+          class="desktop-filter"
+          @change="applyFilters"
+        >
+          <option
+            v-for="(option, index) in sortOptions"
+            :key="option.value"
+            :value="index"
+          >
+            {{ option.label }}
+          </option>
+        </select>
+        <!-- #endif -->
         <picker
+          class="mobile-filter"
           :range="typeOptions"
           range-key="label"
           :value="typeIndex"
@@ -30,6 +60,7 @@
           >
         </picker>
         <picker
+          class="mobile-filter"
           :range="sortOptions"
           range-key="label"
           :value="sortIndex"
@@ -47,7 +78,7 @@
           :class="{ active: activeStatus === tab.status }"
           @click="handleTabChange(tab.status)"
         >
-          {{ tab.name }}　{{ tab.count }}
+          {{ tab.name }}
         </text>
       </view>
       <app-state-hint
@@ -153,12 +184,12 @@ const sortIndex = ref(0);
 
 const activeStatus = ref("all");
 const works = ref([]);
-const tabs = ref([
-  { status: "all", name: "全部", count: 0 },
-  { status: "completed", name: "已完成", count: 0 },
-  { status: "creating", name: "创作中", count: 0 },
-  { status: "canceled", name: "已取消", count: 0 },
-]);
+const tabs = [
+  { status: "all", name: "全部" },
+  { status: "completed", name: "已完成" },
+  { status: "creating", name: "创作中" },
+  { status: "canceled", name: "已取消" },
+];
 const librarySummary = computed(() => `共 ${pageInfo.value.total} 幅典藏`);
 const pageInfo = ref({ page: 1, pageSize: PAGE_SIZE, total: 0 });
 const isLoading = ref(true);
@@ -200,9 +231,6 @@ const loadLibraryData = async (reset = false) => {
       return;
     }
 
-    if (Array.isArray(data.tabs)) {
-      tabs.value = data.tabs;
-    }
     pageInfo.value = {
       page: Number(data.page_info?.page) || page,
       pageSize: Number(data.page_info?.page_size) || PAGE_SIZE,
@@ -240,6 +268,11 @@ const loadLibraryData = async (reset = false) => {
       isLoadingMore.value = false;
     }
   }
+};
+
+// 应用桌面端类型或排序筛选。
+const applyFilters = () => {
+  loadLibraryData(true);
 };
 
 // 按输入内容重新搜索作品。
@@ -402,6 +435,10 @@ onShow(() => {
 
 .summary:first-letter {
   color: $color-primary;
+}
+
+.desktop-filter {
+  display: none;
 }
 
 .library-filters {
@@ -585,6 +622,30 @@ onShow(() => {
  * 必须排在基础样式之后，否则“详情”文字会被基础样式的 display: none 覆盖
  * ============================================================ */
 @media (min-width: $breakpoint-desktop) {
+  /* #ifdef H5 */
+  .desktop-filter {
+    display: block;
+    min-width: 126px;
+    height: 44px;
+    padding: 0 32px 0 14px;
+    border: 1px solid rgba(184, 134, 78, 0.18);
+    border-radius: 10px;
+    background-color: #f7edde;
+    color: #4e665e;
+    font-size: 14px;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid $color-primary;
+      outline-offset: 2px;
+    }
+  }
+
+  .mobile-filter {
+    display: none;
+  }
+  /* #endif */
+
   .work-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
