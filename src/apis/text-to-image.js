@@ -16,11 +16,12 @@ export const createImageGeneration = (data, idempotencyKey) =>
 
 /**
  * 查询文字生图任务状态。
- * @param {Object} data 查询参数，包含 taskId。
+ * @param {Object} params 查询参数，包含 taskId。
  * @returns {Promise<Object>} 任务状态。
  */
-export const getImageTaskStatus = (data = {}) =>
+export const getImageTaskStatus = (params = {}) =>
   request({
     url: `/tasks/${encodeURIComponent(params.taskId || "")}`,
     method: "GET",
+    params,
   });

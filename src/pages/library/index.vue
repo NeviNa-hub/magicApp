@@ -331,7 +331,10 @@ const submitRename = async () => {
   }
   isRenaming.value = true;
   try {
-    await updateLibraryWorkTitle({ workId: renameWork.value.workId, title });
+    await updateLibraryWorkTitle(
+      { workId: renameWork.value.workId },
+      { title },
+    );
     renameWork.value = null;
     uni.showToast({ title: "标题已修改", icon: "none" });
     await loadLibraryData(true);

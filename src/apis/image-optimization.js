@@ -16,12 +16,12 @@ export const createImageOptimization = (data, idempotencyKey) =>
 
 /**
  * 查询图片优化任务状态。
- * @param {Object} data 查询参数，包含 taskId。
+ * @param {Object} params 查询参数，包含 taskId。
  * @returns {Promise<Object>} 任务状态。
  */
-export const getImageOptimizationTaskStatus = (data = {}) =>
+export const getImageOptimizationTaskStatus = (params = {}) =>
   request({
-    url: `/tasks/${encodeURIComponent(data.taskId || "")}`,
+    url: `/tasks/${encodeURIComponent(params.taskId || "")}`,
     method: "GET",
-    data,
+    params,
   });
