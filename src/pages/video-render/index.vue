@@ -153,6 +153,7 @@ import {
   getTaskRefundPoints,
   getTaskRetryCost,
 } from "@/utils/task-refund";
+import { getEditingDraft, clearEditingDraft } from "@/utils/creation-draft";
 import { submitVideoGeneration } from "@/utils/video-generation";
 
 const steps = [
@@ -338,6 +339,9 @@ const confirmRender = async () => {
       mode: draft.value.mode,
       ratio: draft.value.ratio,
       prompt: draft.value.prompt,
+      ...(getEditingDraft()?.task_type === "video"
+        ? { draft_id: getEditingDraft().id }
+        : {}),
     });
 
     if (!task?.task_id) {
@@ -345,6 +349,7 @@ const confirmRender = async () => {
       return;
     }
 
+    clearEditingDraft();
     confirmVisible.value = false;
     progressVisible.value = true;
     // 创建任务已扣减灵感点，刷新共享缓存供页头展示。

@@ -5,14 +5,15 @@ import request from "@/apis/http";
  * @param {Object} data 报价参数：task_type、prompt、style。
  * @returns {Promise<Object>} 输入/输出 token 与预计积分。
  */
-export const getCreationQuote = (data = {}) =>
-  request({
-    url: "/pricing/quote",
-    method: "POST",
-    data,
-    // 计价请求随输入实时触发，失败时保留上次价格，不弹全局错误提示
-    silent: true,
-  });
+export const getCreationQuote = (data = {}) => {
+    return request({
+        url: "/pricing/quote",
+        method: "POST",
+        data,
+        // 计价请求随输入实时触发，失败时保留上次价格，不弹全局错误提示
+        silent: true,
+    });
+} 
 
   // 关于 silent 的说明：
 // silent 通常是请求库（如 uni.request、axios 或项目封装的请求方法）中的一个可选配置项。

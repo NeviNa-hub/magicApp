@@ -63,6 +63,11 @@ const createTaskResponse = (type, data, requiredFields) => {
     return fail(ERROR_CODES.INVALID_PARAMS, `缺少必要参数：${missingField}`);
   }
 
+  if (data.draft_id) {
+    const draft = draftStore.get(data.draft_id);
+    if (!draft || draft.task_type !== type) return fail(ERROR_CODES.CONFLICT, "草稿不存在或已提交");
+    draftStore.delete(data.draft_id);
+  }
   const record = createMockTask(type, data);
 
   return ok({
@@ -100,7 +105,23 @@ const resolveTaskAction = (taskId, action) => {
   return ok(buildMockTaskResult(retryMockTask(taskId)));
 };
 
+const draftStore = new Map();
+let draftSequence = 0;
+
 const exactRoutes = {
+  "GET /drafts": (params) => {
+    const page = Math.max(1, Number(params.page) || 1);
+    const pageSize = Math.max(1, Number(params.page_size) || 10);
+    const items = [...draftStore.values()].reverse();
+    return ok({ items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, page_size: pageSize });
+  },
+  "POST /drafts": (params) => {
+    if (!params.title?.trim() || !params.input_data || !Object.keys(params.input_data).length) return fail(ERROR_CODES.INVALID_PARAMS, "请填写草稿内容");
+    const id = `draft-${++draftSequence}`;
+    const draft = { ...params, id, updated_at: new Date().toISOString() };
+    draftStore.set(id, draft);
+    return ok(draft);
+  },
   [`POST ${API_PATHS.AUTH_REGISTER}`]: (params) => {
     if (!params?.username || !params?.account || !params?.password) {
       return fail(ERROR_CODES.INVALID_PARAMS, "缺少必要参数：username/account/password");
@@ -197,6 +218,19 @@ const exactRoutes = {
 };
 
 const taskRoutes = [
+  ...["GET", "PUT", "DELETE"].map((method) => ({
+    method, pattern: /^\/drafts\/([^/]+)$/,
+    handler: (id, data) => {
+      const draft = draftStore.get(id);
+      if (!draft) return fail(ERROR_CODES.NOT_FOUND, "草稿不存在或已提交");
+      if (method === "GET") return ok(draft);
+      if (method === "DELETE") { draftStore.delete(id); return ok({ id }); }
+      if (!data.title?.trim() || draft.task_type !== data.task_type) return fail(ERROR_CODES.INVALID_PARAMS, "草稿内容无效");
+      const updated = { ...draft, ...data, updated_at: new Date().toISOString() };
+      draftStore.set(id, updated);
+      return ok(updated);
+    },
+  })),
   {
     method: "GET",
     pattern: /^\/library\/works\/([^/]+)\/media$/,

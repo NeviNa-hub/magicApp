@@ -63,6 +63,12 @@
 
     <template #footer>
       <app-flow-button
+        variant="secondary"
+        :loading="isSavingDraft"
+        @click="saveDraft"
+        >保存草稿</app-flow-button
+      >
+      <app-flow-button
         block
         :disabled="!selectedImage || isUploading"
         :loading="isSubmitting"
@@ -118,6 +124,11 @@ import useTaskActions from "@/hooks/useTaskActions";
 import useTaskPolling from "@/hooks/useTaskPolling";
 import { loadPointsBalance } from "@/stores";
 import { chooseSingleImage } from "@/utils/image-picker";
+import {
+  getEditingDraft,
+  clearEditingDraft,
+  persistEditingDraft,
+} from "@/utils/creation-draft";
 import { submitImageOptimization } from "@/utils/image-optimization";
 import { getErrorMessage, isApiError } from "@/utils/request";
 import {
@@ -131,6 +142,16 @@ const promptLimit = 200;
 const progressNote = "已投入云端淬炼池，离开页面不影响任务进度。";
 const prompt = ref("");
 const selectedImage = ref(null);
+const isSavingDraft = ref(false);
+const editingDraft = getEditingDraft();
+if (editingDraft?.task_type === "optimization") {
+  prompt.value = editingDraft.input_data.prompt || "";
+  if (editingDraft.input_data.upload_id)
+    selectedImage.value = {
+      name: "已上传图片",
+      uploadId: editingDraft.input_data.upload_id,
+    };
+}
 const isSubmitting = ref(false);
 const isUploading = ref(false);
 const isProgressVisible = ref(false);
@@ -270,6 +291,27 @@ const chooseImage = async () => {
   }
 };
 
+// 保存优化草稿，只记录已上传的资源标识。
+const saveDraft = async () => {
+  if (isSavingDraft.value || isUploading.value) return;
+  if (!selectedImage.value?.uploadId) {
+    uni.showToast({ title: "请先上传图片", icon: "none" });
+    return;
+  }
+  isSavingDraft.value = true;
+  try {
+    await persistEditingDraft("optimization", {
+      upload_id: selectedImage.value.uploadId,
+      prompt: prompt.value.trim(),
+    });
+    uni.showToast({ title: "草稿已保存", icon: "none" });
+  } catch {
+    uni.showToast({ title: "保存失败", icon: "none" });
+  } finally {
+    isSavingDraft.value = false;
+  }
+};
+
 // 校验图片后开始优化任务
 const startOptimization = async () => {
   if (isSubmitting.value || isUploading.value) {
@@ -291,9 +333,15 @@ const startOptimization = async () => {
   try {
     const task = await submitImageOptimization({
       ...(USE_MOCK
-        ? { image_path: selectedImage.value.path }
+        ? {
+            image_path:
+              selectedImage.value.path || selectedImage.value.uploadId,
+          }
         : { upload_id: selectedImage.value.uploadId }),
       prompt: prompt.value.trim(),
+      ...(getEditingDraft()?.task_type === "optimization"
+        ? { draft_id: getEditingDraft().id }
+        : {}),
     });
 
     if (!task?.task_id) {
@@ -301,6 +349,7 @@ const startOptimization = async () => {
       return;
     }
 
+    clearEditingDraft();
     taskId.value = task.task_id;
     taskProgress.value = 0;
     taskStatus.value = TASK_STATUS.PROCESSING;

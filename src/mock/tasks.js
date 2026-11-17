@@ -18,7 +18,7 @@ let taskSequence = 0;
 export const createMockTask = (type, payload = {}) => {
   taskSequence += 1;
 
-  const taskId = `${type}-${Date.now()}-${taskSequence}`;
+  const taskId = payload.draft_id || `${type}-${Date.now()}-${taskSequence}`;
   const quote = quoteCreation({
     task_type: type,
     prompt: payload.prompt,

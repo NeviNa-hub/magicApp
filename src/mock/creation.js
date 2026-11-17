@@ -100,7 +100,7 @@ const LIBRARY_WORKS = [
   {
     work_id: 3,
     title: "《茶室听雪》高清修复",
-    status: "draft",
+    status: "canceled",
     class_name: "tea-work",
     type_name: "图片优化",
     created_at: "2026-11-12 20:18",
@@ -120,9 +120,9 @@ const buildTabs = (works) => [
     count: works.filter((item) => item.status === "creating").length,
   },
   {
-    status: "draft",
-    name: "草稿",
-    count: works.filter((item) => item.status === "draft").length,
+    status: "canceled",
+    name: "已取消",
+    count: works.filter((item) => item.status === "canceled").length,
   },
 ];
 

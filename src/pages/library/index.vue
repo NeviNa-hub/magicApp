@@ -157,7 +157,7 @@ const tabs = ref([
   { status: "all", name: "全部", count: 0 },
   { status: "completed", name: "已完成", count: 0 },
   { status: "creating", name: "创作中", count: 0 },
-  { status: "draft", name: "草稿", count: 0 },
+  { status: "canceled", name: "已取消", count: 0 },
 ]);
 const librarySummary = computed(() => `共 ${pageInfo.value.total} 幅典藏`);
 const pageInfo = ref({ page: 1, pageSize: PAGE_SIZE, total: 0 });

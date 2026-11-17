@@ -110,6 +110,12 @@
     </view>
 
     <template #footer>
+      <app-flow-button
+        variant="secondary"
+        :loading="isSavingDraft"
+        @click="saveDraft"
+        >保存草稿</app-flow-button
+      >
       <app-flow-button block :loading="isSubmitting" @click="goNext">
         下一步：规格画质
         <!-- #ifdef H5 -->
@@ -124,6 +130,9 @@
 
 <script setup>
 import { computed, reactive, ref } from "vue";
+import { onShow } from "@dcloudio/uni-app";
+
+import { getEditingDraft, persistEditingDraft } from "@/utils/creation-draft";
 
 // #ifdef H5
 import {
@@ -184,6 +193,7 @@ const suggestions = ["清溪泛舟", "浮岚暖翠", "寒江雪霁", "竹影摇�
 const promptLimit = 1000;
 const polishSuffix = "水波微澜，晨雾轻笼，气韵徐徐流转";
 const selectedImage = ref(null);
+const isSavingDraft = ref(false);
 const isSubmitting = ref(false);
 const isUploading = ref(false);
 const formData = reactive({
@@ -247,6 +257,30 @@ const chooseImage = async () => {
     isUploading.value = false;
   }
 };
+
+// 保存视频创作参数。
+const saveDraft = async () => {
+  if (isSavingDraft.value || !formData.prompt.trim()) return;
+  isSavingDraft.value = true;
+  try {
+    await persistEditingDraft("video", {
+      mode: formData.mode,
+      ratio: formData.ratio,
+      prompt: formData.prompt.trim(),
+    });
+    uni.showToast({ title: "草稿已保存", icon: "none" });
+  } catch {
+    uni.showToast({ title: "保存失败", icon: "none" });
+  } finally {
+    isSavingDraft.value = false;
+  }
+};
+
+onShow(() => {
+  const current = getEditingDraft();
+  if (current?.task_type === "video")
+    Object.assign(formData, current.input_data);
+});
 
 // 校验规制与意境后保存草稿，进入画质与渲染页
 const goNext = () => {

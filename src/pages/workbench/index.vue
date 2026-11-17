@@ -122,15 +122,28 @@
             <text>草稿与便签库</text>
             <text class="draft-subtitle">完整归档</text>
           </view>
-          <view v-for="draft in drafts" :key="draft.draftId" class="draft-row">
-            <text class="draft-name">{{ draft.title }} · {{ draft.time }}</text>
-            <text class="draft-status">{{ draft.status }}</text>
+          <view v-for="draft in drafts" :key="draft.id" class="draft-row">
+            <text class="draft-name" @click="openDraft(draft)"
+              >{{ draft.title }} · {{ draft.task_type }}</text
+            >
+            <button :disabled="isDraftAction" @click="renameDraft(draft)">
+              改名
+            </button>
+            <button :disabled="isDraftAction" @click="removeDraft(draft)">
+              删除
+            </button>
           </view>
+          <button v-if="draftError" @click="loadMoreDrafts">
+            加载失败，点击重试
+          </button>
+          <button v-if="drafts.length < draftTotal" @click="loadMoreDrafts">
+            加载更多
+          </button>
           <app-state-hint
-            v-if="!drafts.length"
+            v-if="!drafts.length && !isDraftLoading && !draftError"
             type="empty"
             title="暂无草稿"
-            description="完成一次创作后，草稿会自动归档到这里"
+            description="在创作页面手动保存草稿"
           />
         </view>
       </view>
@@ -140,6 +153,16 @@
 </template>
 
 <script setup>
+import { ref } from "vue";
+import { onShow } from "@dcloudio/uni-app";
+
+import { getDrafts, getDraft, updateDraft, deleteDraft } from "@/apis/drafts";
+import {
+  DRAFT_KEYS,
+  saveCreationDraft,
+  setEditingDraft,
+  clearEditingDraft,
+} from "@/utils/creation-draft";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppImage from "@/components/AppImage/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
@@ -151,26 +174,120 @@ const frames = [
   { frameId: 3, name: "流光·松石" },
   { frameId: 4, name: "收敛·留白" },
 ];
-const drafts = [
-  {
-    draftId: 1,
-    title: "《松山夜笛》插图构思",
-    time: "2小时前",
-    status: "待生成",
-  },
-  {
-    draftId: 2,
-    title: "茶室空间运镜脚本设计",
-    time: "昨日",
-    status: "已分镜",
-  },
-  {
-    draftId: 3,
-    title: "老照片人物去污处理",
-    time: "3日前",
-    status: "已完成",
-  },
-];
+const drafts = ref([]);
+const draftTotal = ref(0);
+const draftPage = ref(0);
+const isDraftLoading = ref(false);
+const isDraftAction = ref(false);
+const draftError = ref(false);
+
+// 加载草稿列表。
+const loadMoreDrafts = async () => {
+  if (isDraftLoading.value) return;
+  isDraftLoading.value = true;
+  draftError.value = false;
+  try {
+    const result = await getDrafts({ page: draftPage.value + 1 });
+    drafts.value = drafts.value.concat(result.items);
+    draftPage.value = result.page;
+    draftTotal.value = result.total;
+  } catch {
+    draftError.value = true;
+    uni.showToast({ title: "草稿加载失败", icon: "none" });
+  } finally {
+    isDraftLoading.value = false;
+  }
+};
+
+/** 打开草稿并恢复对应页面。
+ * @param {Object} item 草稿列表项。
+ * @returns {Promise<void>} 无返回值。
+ */
+const openDraft = async (item) => {
+  try {
+    const draft = await getDraft(item.id);
+    setEditingDraft(draft);
+    if (draft.task_type === "image")
+      saveCreationDraft(DRAFT_KEYS.image, draft.input_data);
+    if (draft.task_type === "video")
+      saveCreationDraft(DRAFT_KEYS.video, draft.input_data);
+    const paths = {
+      image: "/pages/image-style/index",
+      video: "/pages/video-creation/index",
+      optimization: "/pages/image-optimization/index",
+    };
+    uni.navigateTo({ url: paths[draft.task_type] });
+  } catch {
+    uni.showToast({ title: "草稿不可用，请刷新", icon: "none" });
+  }
+};
+
+/** 修改草稿名称。
+ * @param {Object} draft 草稿记录。
+ * @returns {void}
+ */
+const renameDraft = (draft) => {
+  uni.showModal({
+    title: "修改草稿名称",
+    editable: true,
+    placeholderText: draft.title,
+    success: async (result) => {
+      if (!result.confirm) return;
+      const title = result.content.trim();
+      if (!title || title.length > 50) {
+        uni.showToast({ title: "请输入 1 至 50 字标题", icon: "none" });
+        return;
+      }
+      if (isDraftAction.value) return;
+      isDraftAction.value = true;
+      try {
+        const updated = await updateDraft(draft.id, {
+          task_type: draft.task_type,
+          title,
+          input_data: draft.input_data,
+        });
+        draft.title = updated.title;
+      } catch {
+        uni.showToast({ title: "修改失败", icon: "none" });
+      } finally {
+        isDraftAction.value = false;
+      }
+    },
+  });
+};
+
+/** 删除选中的草稿。
+ * @param {Object} draft 草稿记录。
+ * @returns {void}
+ */
+const removeDraft = (draft) => {
+  uni.showModal({
+    title: "删除草稿",
+    content: "确认删除此草稿？",
+    success: async (result) => {
+      if (!result.confirm) return;
+      if (isDraftAction.value) return;
+      isDraftAction.value = true;
+      try {
+        await deleteDraft(draft.id);
+        drafts.value = drafts.value.filter((item) => item.id !== draft.id);
+        draftTotal.value -= 1;
+      } catch {
+        uni.showToast({ title: "删除失败", icon: "none" });
+      } finally {
+        isDraftAction.value = false;
+      }
+    },
+  });
+};
+
+onShow(() => {
+  drafts.value = [];
+  draftPage.value = 0;
+  draftTotal.value = 0;
+  loadMoreDrafts();
+});
+
 const filmChips = ["四开画幅", "轨迹平滑", "60FPS 帧率"];
 
 /**
@@ -179,6 +296,7 @@ const filmChips = ["四开画幅", "轨迹平滑", "60FPS 帧率"];
  * @returns {void}
  */
 const startTool = (name) => {
+  clearEditingDraft();
   if (name === "文字生图") {
     uni.navigateTo({ url: "/pages/image-creation/index" });
     return;

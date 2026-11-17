@@ -59,6 +59,13 @@
     <template #footer>
       <app-flow-button
         variant="secondary"
+        :loading="isSavingDraft"
+        @click="saveDraft"
+      >
+        保存草稿
+      </app-flow-button>
+      <app-flow-button
+        variant="secondary"
         class="previous-button"
         @click="goBack"
       >
@@ -112,6 +119,11 @@ import { MagicStick, RefreshLeft } from "@element-plus/icons-vue";
 
 import { TASK_STATUS } from "@/apis/constants";
 import { getImageTaskStatus } from "@/apis/text-to-image";
+import {
+  getEditingDraft,
+  clearEditingDraft,
+  persistEditingDraft,
+} from "@/utils/creation-draft";
 import { submitImageGeneration } from "@/utils/image-generation";
 import AppConfigCard from "@/components/AppConfigCard/index.vue";
 import AppFlowButton from "@/components/AppFlowButton/index.vue";
@@ -143,6 +155,7 @@ const steps = [
 ];
 const selectedStyle = ref("");
 const prompt = ref("");
+const isSavingDraft = ref(false);
 const promptLimit = 400;
 const suggestions = [
   "江南烟雨",
@@ -327,6 +340,28 @@ const { cancelTask, retryTask, isCanceling, isRetrying } = useTaskActions({
   onRetried: () => startTaskPolling(),
 });
 
+// 保存当前文字生图参数。
+const saveDraft = async () => {
+  if (isSavingDraft.value || !prompt.value.trim()) {
+    if (!prompt.value.trim())
+      uni.showToast({ title: "请填写提示词", icon: "none" });
+    return;
+  }
+  isSavingDraft.value = true;
+  try {
+    await persistEditingDraft("image", {
+      prompt: prompt.value.trim(),
+      style: selectedStyle.value,
+      ratio: draft.value.ratio,
+    });
+    uni.showToast({ title: "草稿已保存", icon: "none" });
+  } catch {
+    uni.showToast({ title: "保存失败", icon: "none" });
+  } finally {
+    isSavingDraft.value = false;
+  }
+};
+
 /**
  * 确认生成后创建文字生图任务。
  * @returns {Promise<void>}
@@ -349,6 +384,9 @@ const confirmGenerate = async () => {
       prompt: requestData.prompt,
       style: requestData.style,
       ratio: requestData.ratio,
+      ...(getEditingDraft()?.task_type === "image"
+        ? { draft_id: getEditingDraft().id }
+        : {}),
     });
 
     if (!task?.task_id) {
@@ -356,6 +394,7 @@ const confirmGenerate = async () => {
       return;
     }
 
+    clearEditingDraft();
     confirmVisible.value = false;
     draft.value = { ...draft.value, ...requestData };
     saveCreationDraft(DRAFT_KEYS.image, draft.value);

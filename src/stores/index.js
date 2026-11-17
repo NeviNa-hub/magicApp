@@ -44,6 +44,7 @@ export const clearSession = () => {
   sessionState.user = null;
   uni.removeStorageSync(SESSION_USER_STORAGE_KEY);
   clearLastPage();
+  uni.removeStorageSync("editing_draft");
   // 切换账号时清空积分缓存，避免展示上一个账号的余额。
   pointsState.balance = null;
   pointsState.usedPoints = null;
