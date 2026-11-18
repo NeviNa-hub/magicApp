@@ -1,4 +1,4 @@
-import { API_BASE_URL, REQUEST_TIMEOUT } from "@/apis/config";
+import { API_BASE_URL, IS_API_BASE_URL_VALID, REQUEST_TIMEOUT } from "@/apis/config";
 import { ERROR_CODES } from "@/apis/constants";
 import { clearSession } from "@/stores";
 import { getToken } from "@/utils/auth";
@@ -11,6 +11,10 @@ import { ApiError } from "@/utils/request";
  */
 export const uploadFile = (config) =>
   new Promise((resolve, reject) => {
+    if (!IS_API_BASE_URL_VALID) {
+      reject(new ApiError(ERROR_CODES.SERVER_ERROR, "服务地址未配置，请联系管理员"));
+      return;
+    }
     const token = getToken();
     const signal = config.signal;
     let task = null;
@@ -42,6 +46,10 @@ export const uploadFile = (config) =>
       header: token ? { Authorization: `Bearer ${token}` } : {},
       timeout: REQUEST_TIMEOUT,
       success: (response) => {
+        if (getToken() !== token) {
+          finish(reject, new ApiError(ERROR_CODES.REQUEST_ABORTED, "会话已变化"));
+          return;
+        }
         let body;
         try {
           body = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
@@ -59,12 +67,12 @@ export const uploadFile = (config) =>
         }
         finish(resolve, body.data);
       },
-      fail: () => finish(reject, signal?.aborted
+      fail: () => finish(reject, signal?.aborted || getToken() !== token
         ? new ApiError(ERROR_CODES.REQUEST_ABORTED, "上传已取消")
         : new ApiError(ERROR_CODES.NETWORK_ERROR, "图片上传失败，请检查网络后重试")),
     });
     task?.onProgressUpdate?.((event) => {
-      if (!finished && Number.isFinite(event.progress)) config.onProgress?.(event.progress);
+      if (!finished && getToken() === token && Number.isFinite(event.progress)) config.onProgress?.(event.progress);
     });
     if (!finished) {
       signal?.addEventListener("abort", abortUpload, { once: true });

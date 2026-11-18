@@ -18,6 +18,13 @@ export const API_BASE_URL = String(ENV.VITE_API_BASE_URL ?? "/api").replace(
   "",
 );
 
+// H5 可以使用同源相对路径；App 和小程序必须配置完整的服务地址。
+let requiresAbsoluteApiUrl = false;
+// #ifndef H5
+requiresAbsoluteApiUrl = true;
+// #endif
+export const IS_API_BASE_URL_VALID = !requiresAbsoluteApiUrl || /^https?:\/\/[^/]+(?:\/|$)/i.test(API_BASE_URL);
+
 /** 单次请求超时时间，单位毫秒。 */
 export const REQUEST_TIMEOUT = 15000;
 

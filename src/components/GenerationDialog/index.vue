@@ -10,12 +10,18 @@
       <video class="result-image" :src="resultUrl" controls />
       <text class="result-hint">视频链接可能过期，请及时保存</text>
     </template>
-    <template v-else-if="status === 'completed' && resultUrl && type === 'optimization'">
-      <image-comparison :original-url="originalUrl" :original-id="originalId" :result-url="resultUrl" />
+    <template
+      v-else-if="status === 'completed' && resultUrl && type === 'optimization'"
+    >
+      <image-comparison
+        :original-url="originalUrl"
+        :original-id="originalId"
+        :result-url="resultUrl"
+      />
     </template>
     <template v-else-if="status === 'completed' && resultUrl">
       <view class="result-preview">
-        <image
+        <app-image
           class="result-image"
           :src="resultUrl"
           mode="aspectFit"
@@ -34,7 +40,10 @@
       <text class="progress-label">{{ progressLabel }}</text>
     </template>
     <text class="progress-note">{{ note }}</text>
-    <view v-if="showCancelAction || showRetryAction" class="progress-actions">
+    <view
+      v-if="showCancelAction || showRetryAction || showRefreshAction"
+      class="progress-actions"
+    >
       <app-flow-button
         v-if="showCancelAction"
         variant="danger"
@@ -46,7 +55,15 @@
         {{ canceling ? "正在取消…" : "取消创作" }}
       </app-flow-button>
       <app-flow-button
-        v-else
+        v-if="showRefreshAction"
+        block
+        :loading="refreshing"
+        @click="$emit('refresh')"
+      >
+        {{ refreshing ? "正在查询…" : "重新查询状态" }}
+      </app-flow-button>
+      <app-flow-button
+        v-else-if="showRetryAction"
         block
         :loading="retrying"
         :disabled="canceling"
@@ -79,6 +96,7 @@ import { computed } from "vue";
 import { TASK_STATUS } from "@/apis/constants";
 import AppBottomSheet from "@/components/AppBottomSheet/index.vue";
 import AppFlowButton from "@/components/AppFlowButton/index.vue";
+import AppImage from "@/components/AppImage/index.vue";
 import ImageComparison from "@/components/ImageComparison/index.vue";
 
 // #ifdef H5
@@ -97,6 +115,8 @@ import { Collection, House } from "@element-plus/icons-vue";
  * @param originalId 优化原图上传标识。
  * @param canceling 是否正在提交取消请求。
  * @param retrying 是否正在提交重试请求。
+ * @param statusUnavailable 任务状态暂时无法查询。
+ * @param refreshing 是否正在重新查询。
  */
 const props = defineProps({
   title: {
@@ -137,8 +157,16 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  statusUnavailable: {
+    type: Boolean,
+    default: false,
+  },
+  refreshing: {
+    type: Boolean,
+    default: false,
+  },
 });
-defineEmits(["back", "library", "cancel", "retry"]);
+defineEmits(["back", "library", "cancel", "retry", "refresh"]);
 
 const dialogTitle = computed(
   () =>
@@ -152,6 +180,7 @@ const showCancelAction = computed(
     props.status === TASK_STATUS.PROCESSING,
 );
 const showRetryAction = computed(() => props.status === TASK_STATUS.FAILED);
+const showRefreshAction = computed(() => props.statusUnavailable);
 
 // 预览生成结果大图
 const previewResult = () => {

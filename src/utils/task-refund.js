@@ -3,12 +3,12 @@
  */
 
 /**
- * 读取任务已退回的积分总额。
+ * 读取当前任务这次失败或取消已退回的积分。
  * @param {Object} [data] 任务状态数据。
  * @returns {number} 已退回积分，缺少字段时为 0。
  */
 export const getTaskRefundPoints = (data) => {
-  const points = Number(data?.refund_points);
+  const points = Number(data?.current_refund_points ?? data?.refund_points);
 
   return Number.isFinite(points) && points > 0 ? points : 0;
 };

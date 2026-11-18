@@ -48,7 +48,7 @@ const NAV_ITEMS = [
   {
     key: "workshop",
     label: "工作坊",
-    url: "/pages/under-development/index?title=工作坊",
+    url: "/pages/workshop/index",
   },
   {
     key: "profile",

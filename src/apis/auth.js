@@ -38,3 +38,17 @@ export const logoutUser = (data = {}) => {
     data,
   });
 };
+
+/**
+ * 校验密码并永久注销当前账号。
+ * @param {Object} data 当前账号密码。
+ * @returns {Promise<null>} 注销结果。
+ */
+export const deleteAccount = (data = {}) => {
+  return request({
+    url: "/auth/delete-account",
+    method: "POST",
+    data,
+    silent: true,
+  });
+};

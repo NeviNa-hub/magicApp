@@ -13,21 +13,35 @@
           </view>
           <view class="preview-info">
             <view class="preview-head">
-              <text class="preview-title">{{ renderConfig.previewTitle }}</text>
+              <text class="preview-title">创作示意图，非生成结果</text>
               <text class="preview-state">已立意</text>
             </view>
             <view class="preview-tags">
               <text class="preview-tag">{{ draft.ratioName }}</text>
-              <text class="preview-tag is-accent">
-                {{ renderConfig.cameraMove }}
-              </text>
+              <text class="preview-tag is-accent"> {{ duration }} 秒 </text>
             </view>
             <text class="preview-desc">“{{ promptText }}”</text>
           </view>
         </view>
       </app-config-card>
 
-      <app-config-card index="贰" title="渲染资源结算">
+      <app-config-card index="贰" title="视频时长">
+        <view class="duration-options">
+          <button
+            v-for="seconds in durations"
+            :key="seconds"
+            :class="{ selected: duration === seconds }"
+            @tap="duration = seconds"
+          >
+            {{ seconds }} 秒
+          </button>
+        </view>
+        <text class="duration-hint"
+          >时长越长预计消耗越多，实际费用以创建任务时的报价为准。</text
+        >
+      </app-config-card>
+
+      <app-config-card index="叁" title="渲染资源结算">
         <template #extra>
           <button class="boost-button" @click="showBoostTip">
             <!-- #ifdef H5 -->
@@ -47,7 +61,7 @@
           <view class="resource-item">
             <text class="resource-label">当前可用</text>
             <view class="resource-value">
-              {{ renderConfig.power }}
+              {{ pointsState.balance ?? "—" }}
               <text class="resource-unit">点</text>
             </view>
           </view>
@@ -58,6 +72,9 @@
             </view>
           </view>
         </view>
+        <button v-if="!costQuote" @tap="refreshQuote">
+          报价加载中或失败，点击重试
+        </button>
       </app-config-card>
     </view>
 
@@ -73,7 +90,12 @@
         <!-- #endif -->
         上一步
       </app-flow-button>
-      <app-flow-button block :loading="isSubmitting" @click="handleRender">
+      <app-flow-button
+        block
+        :loading="isSubmitting"
+        :disabled="!costQuote"
+        @click="handleRender"
+      >
         <!-- #ifdef H5 -->
         <el-icon v-if="!isSubmitting" class="button-icon">
           <VideoPlay />
@@ -111,8 +133,11 @@
         :note="taskNote"
         :canceling="isCanceling"
         :retrying="isRetrying"
+        :status-unavailable="statusUnavailable"
+        :refreshing="isRefreshingStatus"
         @cancel="cancelTask"
         @retry="retryTask"
+        @refresh="refreshTaskStatus"
         @back="goWorkbench"
         @library="goLibrary"
       />
@@ -121,7 +146,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from "vue";
+import { computed, ref } from "vue";
 import { onLoad, onShow } from "@dcloudio/uni-app";
 
 // #ifdef H5
@@ -145,9 +170,10 @@ import GenerationDialog from "@/components/GenerationDialog/index.vue";
 import useCreationQuote from "@/hooks/useCreationQuote";
 import useTaskActions from "@/hooks/useTaskActions";
 import useTaskPolling from "@/hooks/useTaskPolling";
-import { loadPointsBalance } from "@/stores";
+import { loadPointsBalance, pointsState } from "@/stores";
 import { DRAFT_KEYS, readCreationDraft } from "@/utils/creation-draft";
 import { getErrorMessage, isApiError } from "@/utils/request";
+import { limitPromptCharacters } from "@/utils/prompt";
 import {
   buildFailureNote,
   getTaskRefundPoints,
@@ -161,33 +187,37 @@ const steps = [
   { label: "画质与渲染", state: "active" },
 ];
 const draft = ref({ ratioName: "", prompt: "", imagePath: "" });
-const DEFAULT_RENDER_COST = 5;
-const renderConfig = reactive({
-  power: 800,
-  estimatedTime: "约 18 秒",
-  previewTitle: "《江雪孤舟 · 动态长卷》",
-  cameraMove: "平缓推镜",
-});
+const durations = [5, 10, 15];
+const promptLimit = 1000;
+const duration = ref(5);
+const renderConfig = { estimatedTime: "视排队和生成情况而定" };
 const confirmVisible = ref(false);
 const progressVisible = ref(false);
 const isSubmitting = ref(false);
 const taskId = ref("");
 const taskProgress = ref(0);
 const taskStatus = ref(TASK_STATUS.PENDING);
+const statusUnavailable = ref(false);
+const isRefreshingStatus = ref(false);
 const taskResultUrl = ref("");
 const taskStatusData = ref(null);
 const taskRetryCost = ref(0);
 
-const { quote: costQuote } = useCreationQuote({
-  getParams: () => ({
-    task_type: "video",
-    prompt: draft.value.prompt,
-  }),
+const { quote: costQuote, refreshQuote } = useCreationQuote({
+  getParams: () => {
+    draft.value.prompt = limitPromptCharacters(
+      draft.value.prompt || "",
+      promptLimit,
+    );
+    return {
+      task_type: "video",
+      prompt: draft.value.prompt,
+      duration: duration.value,
+    };
+  },
 });
 
-const renderCost = computed(
-  () => costQuote.value?.cost_points ?? DEFAULT_RENDER_COST,
-);
+const renderCost = computed(() => costQuote.value?.cost_points ?? "—");
 const renderTokens = computed(() => costQuote.value?.total_tokens || 0);
 const confirmNote = computed(
   () =>
@@ -217,6 +247,8 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
   isFailed: (data) => data.status === TASK_STATUS.FAILED,
   isCanceled: (data) => data.status === TASK_STATUS.CANCELED,
   onProgress: (data) => {
+    statusUnavailable.value = false;
+    isRefreshingStatus.value = false;
     taskProgress.value = Number(data.progress) || 0;
     taskStatus.value = data.status || TASK_STATUS.PROCESSING;
     taskResultUrl.value = data.result_urls?.[0] || "";
@@ -226,6 +258,7 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
     };
   },
   onCompleted: (data) => {
+    isRefreshingStatus.value = false;
     taskStatus.value = TASK_STATUS.COMPLETED;
     taskProgress.value = 100;
     taskResultUrl.value = data.result_urls?.[0] || "";
@@ -235,31 +268,40 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
     };
   },
   onFailed: (error, data) => {
-    const isRequestError = isApiError(error);
-    const note = isRequestError
-      ? "任务状态查询失败，请稍后在作品库确认结果。"
-      : buildFailureNote(
-          data,
-          getErrorMessage(error, "生成失败，请稍后重试。"),
-        );
-
+    isRefreshingStatus.value = false;
+    const note = buildFailureNote(
+      data,
+      getErrorMessage(error, "生成失败，请稍后重试。"),
+    );
     taskStatus.value = TASK_STATUS.FAILED;
     taskRetryCost.value = getTaskRetryCost(data);
     taskStatusData.value = { stageLabel: "生成失败", note };
-
-    if (!isRequestError) {
-      uni.showToast({
-        title: data?.error_message || note,
-        icon: "none",
-      });
-    }
+    uni.showToast({ title: data?.error_message || note, icon: "none" });
+  },
+  onUnavailable: () => {
+    isRefreshingStatus.value = false;
+    statusUnavailable.value = true;
+    taskStatusData.value = {
+      stageLabel: "状态暂不可用",
+      note: "任务仍可能在处理中，可重新查询状态。",
+    };
   },
   onCanceled: (data) => applyCanceledState(data),
 });
 
+// 状态查询恢复后继续查询原任务，不重新创建或扣费
+const refreshTaskStatus = () => {
+  if (isRefreshingStatus.value) return;
+  isRefreshingStatus.value = true;
+  statusUnavailable.value = false;
+  startPolling();
+};
+
 // 任务取消后停止轮询，弹窗切换为已取消状态
 const applyCanceledState = (data = {}) => {
   stopPolling();
+  isRefreshingStatus.value = false;
+  statusUnavailable.value = false;
   taskStatus.value = TASK_STATUS.CANCELED;
   taskResultUrl.value = "";
   taskRetryCost.value = 0;
@@ -280,6 +322,7 @@ const { cancelTask, retryTask, isCanceling, isRetrying } = useTaskActions({
   getRetryCost: () => taskRetryCost.value,
   onCanceled: (data) => applyCanceledState(data),
   onRetried: () => {
+    statusUnavailable.value = false;
     taskStatus.value = TASK_STATUS.PENDING;
     taskProgress.value = 0;
     taskResultUrl.value = "";
@@ -319,7 +362,7 @@ const showBoostTip = () => {
 
 // 打开渲染确认弹窗
 const handleRender = () => {
-  if (isSubmitting.value) {
+  if (isSubmitting.value || !costQuote.value) {
     return;
   }
 
@@ -328,7 +371,11 @@ const handleRender = () => {
 
 // 确认后创建视频生成任务，并轮询真实任务进度
 const confirmRender = async () => {
-  if (isSubmitting.value) {
+  draft.value.prompt = limitPromptCharacters(
+    draft.value.prompt || "",
+    promptLimit,
+  );
+  if (isSubmitting.value || !costQuote.value) {
     return;
   }
 
@@ -339,6 +386,7 @@ const confirmRender = async () => {
       mode: draft.value.mode,
       ratio: draft.value.ratio,
       prompt: draft.value.prompt,
+      duration: duration.value,
       ...(getEditingDraft()?.task_type === "video"
         ? { draft_id: getEditingDraft().id }
         : {}),
@@ -399,6 +447,7 @@ onLoad((query) => {
 });
 
 onShow(() => {
+  loadPointsBalance();
   // 从作品库进入的进度查看不依赖规制草稿
   if (isTaskEntry) {
     return;
@@ -414,6 +463,7 @@ onShow(() => {
 
   draft.value = {
     ...stored,
+    prompt: limitPromptCharacters(stored.prompt || "", promptLimit),
     ratioName: stored.ratioName || stored.ratio,
     imagePath: stored.imagePath || "",
   };
@@ -421,6 +471,28 @@ onShow(() => {
 </script>
 
 <style scoped lang="scss">
+.duration-options {
+  display: flex;
+  gap: 16rpx;
+}
+
+.duration-options button {
+  margin: 0;
+  padding: 8rpx 24rpx;
+  font-size: 26rpx;
+}
+
+.duration-options button.selected {
+  background: #b98349;
+  color: #fff;
+}
+
+.duration-hint {
+  display: block;
+  margin-top: 16rpx;
+  color: #6f8179;
+  font-size: 24rpx;
+}
 .flow-body {
   @include flow-body(2);
 }

@@ -2,6 +2,7 @@
  * 文字生图 Demo 数据
  */
 import { TASK_STATUS } from "../apis/constants.js";
+import { countPromptCharacters, limitPromptCharacters } from "../utils/prompt.js";
 
 export const IMAGE_STYLES = [
   {
@@ -85,7 +86,12 @@ const buildWorkName = (prompt = "") => {
     return "《未命名画卷》";
   }
 
-  return `《${prompt.length > 12 ? `${prompt.slice(0, 12)}…` : prompt}》`;
+  const title =
+    countPromptCharacters(prompt) > 12
+      ? `${limitPromptCharacters(prompt, 12)}…`
+      : prompt;
+
+  return `《${title}》`;
 };
 
 /**

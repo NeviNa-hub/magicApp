@@ -20,7 +20,8 @@ const DEFAULT_RETRY_LIMIT = 1;
  * @param {Function} defaultOptions.isCanceled 判断任务是否已取消。
  * @param {Function} defaultOptions.onProgress 每次拉取成功后的回调。
  * @param {Function} defaultOptions.onCompleted 任务完成时的回调。
- * @param {Function} defaultOptions.onFailed 任务失败、超时或重试耗尽时的回调，参数为错误；任务失败时附带状态数据。
+ * @param {Function} defaultOptions.onFailed 服务端确认任务失败时的回调。
+ * @param {Function} defaultOptions.onUnavailable 状态查询暂不可用时的回调。
  * @param {Function} defaultOptions.onCanceled 任务已取消时的回调。
  * @returns {{start: Function, stop: Function, isPolling: import("vue").Ref<boolean>}}
  *   轮询控制器。
@@ -78,6 +79,7 @@ export default function useTaskPolling(defaultOptions = {}) {
       onProgress,
       onCompleted,
       onFailed,
+      onUnavailable,
       onCanceled,
     } = currentOptions;
 
@@ -117,7 +119,7 @@ export default function useTaskPolling(defaultOptions = {}) {
 
       if (attempts >= maxAttempts) {
         stop();
-        onFailed?.(new Error("任务仍在处理，请稍后在作品库查看"));
+        onUnavailable?.(new Error("任务仍在处理，请稍后在作品库查看"));
       }
     } catch (error) {
       if (token !== pollingToken) {
@@ -128,7 +130,7 @@ export default function useTaskPolling(defaultOptions = {}) {
 
       if (retryCount > retryLimit) {
         stop();
-        onFailed?.(error);
+        onUnavailable?.(error);
       }
     } finally {
       if (token === pollingToken) {
@@ -164,6 +166,7 @@ export default function useTaskPolling(defaultOptions = {}) {
       onProgress: config.onProgress,
       onCompleted: config.onCompleted,
       onFailed: config.onFailed,
+      onUnavailable: config.onUnavailable,
       onCanceled: config.onCanceled,
     };
     attempts = 0;

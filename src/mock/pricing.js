@@ -33,8 +33,9 @@ export const estimateTextTokens = (text = "") => {
  * @param {string} [params.style] 画风文案。
  * @returns {Object} 与后端 /pricing/quote 一致的报价。
  */
-export const quoteCreation = ({ task_type: taskType, prompt = "", style = "" } = {}) => {
-  const outputTokens = OUTPUT_TOKEN_BUDGETS[taskType] || 0;
+export const quoteCreation = ({ task_type: taskType, prompt = "", style = "", duration = 5 } = {}) => {
+  const baseOutput = OUTPUT_TOKEN_BUDGETS[taskType] || 0;
+  const outputTokens = taskType === "video" ? Math.ceil(baseOutput * duration / 5) : baseOutput;
   const inputTokens = estimateTextTokens(prompt) + estimateTextTokens(style);
   const totalTokens = inputTokens + outputTokens;
 

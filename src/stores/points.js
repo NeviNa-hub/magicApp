@@ -26,6 +26,16 @@ export const setPointsBalance = ({ balance, usedPoints } = {}) => {
 };
 
 let loadingPromise = null;
+let pointsGeneration = 0;
+
+// 切换账号时丢弃旧请求，防止旧余额覆盖新会话。
+export const resetPointsState = () => {
+  pointsGeneration += 1;
+  loadingPromise = null;
+  pointsState.balance = null;
+  pointsState.usedPoints = null;
+  pointsState.loaded = false;
+};
 
 /**
  * 读取积分余额；已加载时不重复请求，进行中的请求去重共享。
@@ -42,10 +52,12 @@ export const loadPointsBalance = ({ force = false } = {}) => {
     return loadingPromise;
   }
 
+  const current = ++pointsGeneration;
   loadingPromise = (async () => {
     try {
       const data = await getPointsInfo({ page: 1, page_size: 1 });
 
+      if (current !== pointsGeneration) return;
       setPointsBalance({
         balance: data.points_balance,
         usedPoints: data.used_points,
@@ -53,8 +65,7 @@ export const loadPointsBalance = ({ force = false } = {}) => {
     } catch {
       // 请求层已统一提示错误，余额保留占位符。
     } finally {
-      pointsState.loaded = true;
-      loadingPromise = null;
+      if (current === pointsGeneration) loadingPromise = null;
     }
   })();
 

@@ -20,11 +20,11 @@
               src="/static/home/home.jpg"
               mode="aspectFill"
             />
-            <view class="hero-label">今日推荐</view>
+            <view class="hero-label">创作示意</view>
             <view class="hero-caption">AI 大模型</view>
-            <view class="hero-hint"
-              >提示词：温馨治愈，青绿设色，微风拂动 ...</view
-            >
+            <view class="hero-hint">
+              提示词：温馨治愈，青绿设色，微风拂动 ...
+            </view>
           </view>
           <view class="hero-actions">
             <button class="action-primary" @click="goWorkbench">
@@ -74,13 +74,13 @@
           </view>
         </view>
 
-        <!-- 创作想法入口：仅展示，不提供点击交互 -->
+        <!-- 将动态展示的灵感文案入口到创作流程。 -->
         <view class="prompt-bar">
           <text class="prompt-placeholder">
             {{ typedPrompt }}
             <text class="prompt-caret"></text>
           </text>
-          <view class="prompt-button">
+          <view class="prompt-button" @click="goWorkbench">
             <!-- #ifdef H5 -->
             <el-icon class="prompt-edit"><EditPen /></el-icon>
             <!-- #endif -->
@@ -112,6 +112,7 @@ import {
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppImage from "@/components/AppImage/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
+import { clearEditingDraft } from "@/utils/creation-draft";
 
 const homeData = {
   quote: "造法自然 · 意致千里",
@@ -241,6 +242,7 @@ const openMode = (url) => {
     return;
   }
 
+  clearEditingDraft();
   uni.navigateTo({ url });
 };
 </script>

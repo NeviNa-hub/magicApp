@@ -57,9 +57,19 @@
             <!-- #endif -->
             {{ isUploading ? "上传中…" : selectedImage ? "更换" : "选图" }}
           </button>
-          <text v-if="isUploading">{{ uploadProgress === null ? "正在准备图片…" : `上传中 ${uploadProgress}%` }}</text>
-          <button v-if="isUploading" @click.stop="cancelUpload">取消上传</button>
-          <button v-else-if="canRetryUpload" @click.stop="retryUpload">重试上传</button>
+          <text v-if="isUploading">
+            {{
+              uploadProgress === null
+                ? "正在准备图片…"
+                : `上传中 ${uploadProgress}%`
+            }}
+          </text>
+          <button v-if="isUploading" @click.stop="cancelUpload">
+            取消上传
+          </button>
+          <button v-else-if="canRetryUpload" @click.stop="retryUpload">
+            重试上传
+          </button>
         </view>
       </app-config-card>
 
@@ -74,21 +84,34 @@
         </template>
         <textarea
           v-model="formData.prompt"
-          :maxlength="promptLimit"
+          :maxlength="promptLimit * 2"
+          @input="
+            formData.prompt = normalizePromptInput(
+              $event.detail.value,
+              promptLimit,
+            )
+          "
           class="prompt-input"
           placeholder="写下动卷意境，点染光影与运镜"
         />
         <view class="prompt-foot">
           <text class="prompt-count">
-            {{ formData.prompt.length }} / {{ promptLimit }}字
+            {{ promptCharacterCount }} / {{ promptLimit }}字
           </text>
-          <button class="polish-button" @click="polishPrompt">
+          <button
+            class="polish-button"
+            :disabled="isOptimizing || isSubmitting"
+            @click="promptOptimizer?.optimize()"
+          >
             <!-- #ifdef H5 -->
             <el-icon><MagicStick /></el-icon>
             <!-- #endif -->
-            润色辞藻
+            {{ isOptimizing ? "优化中…" : "AI 优化" }}
           </button>
         </view>
+        <text class="fixed-tip"
+          >AI 优化会将提示词发送至硅基流动，不消耗项目积分。</text
+        >
 
         <view class="suggestion-head">
           <!-- #ifdef H5 -->
@@ -119,7 +142,12 @@
         @click="saveDraft"
         >保存草稿</app-flow-button
       >
-      <app-flow-button block :loading="isSubmitting" @click="goNext">
+      <app-flow-button
+        block
+        :loading="isSubmitting"
+        :disabled="isOptimizing"
+        @click="goNext"
+      >
         下一步：规格画质
         <!-- #ifdef H5 -->
         <el-icon v-if="!isSubmitting" class="next-icon">
@@ -128,14 +156,28 @@
         <!-- #endif -->
       </app-flow-button>
     </template>
+    <template #overlay>
+      <prompt-optimizer
+        ref="promptOptimizer"
+        v-model="formData.prompt"
+        task-type="video"
+        :limit="promptLimit"
+        @loading="isOptimizing = $event"
+      />
+    </template>
   </creation-page>
 </template>
 
 <script setup>
 import { computed, reactive, ref } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { onLoad } from "@dcloudio/uni-app";
 
 import { getEditingDraft, persistEditingDraft } from "@/utils/creation-draft";
+import {
+  countPromptCharacters,
+  limitPromptCharacters,
+  normalizePromptInput,
+} from "@/utils/prompt";
 
 // #ifdef H5
 import {
@@ -155,8 +197,13 @@ import AppConfigCard from "@/components/AppConfigCard/index.vue";
 import AppFlowButton from "@/components/AppFlowButton/index.vue";
 import AppImage from "@/components/AppImage/index.vue";
 import CreationPage from "@/components/CreationPage/index.vue";
-import { DRAFT_KEYS, saveCreationDraft } from "@/utils/creation-draft";
-import { appendPromptText, polishPromptText } from "@/utils/prompt";
+import PromptOptimizer from "@/components/PromptOptimizer/index.vue";
+import {
+  DRAFT_KEYS,
+  readCreationDraft,
+  saveCreationDraft,
+} from "@/utils/creation-draft";
+import { appendPromptText } from "@/utils/prompt";
 import { getErrorMessage } from "@/utils/request";
 
 const steps = [
@@ -193,9 +240,13 @@ const ratios = [
 const modes = [{ modeId: "text", name: "文字生视频" }];
 const suggestions = ["清溪泛舟", "浮岚暖翠", "寒江雪霁", "竹影摇曳"];
 const promptLimit = 1000;
-const polishSuffix = "水波微澜，晨雾轻笼，气韵徐徐流转";
+const promptCharacterCount = computed(() =>
+  countPromptCharacters(formData.prompt),
+);
 const selectedImage = ref(null);
 const isSavingDraft = ref(false);
+const isOptimizing = ref(false);
+const promptOptimizer = ref(null);
 const isSubmitting = ref(false);
 const formData = reactive({
   ratio: "16:9",
@@ -217,7 +268,10 @@ const imageHint = computed(() =>
  * @returns {void}
  */
 const appendPrompt = (value) => {
-  formData.prompt = appendPromptText(formData.prompt, value);
+  formData.prompt = limitPromptCharacters(
+    appendPromptText(formData.prompt, value),
+    promptLimit,
+  );
 };
 
 // 清空意境构想
@@ -225,16 +279,14 @@ const clearPrompt = () => {
   formData.prompt = "";
 };
 
-// 在现有意境后追加润色句式，空意境时以寒江雪意起笔
-const polishPrompt = () => {
-  formData.prompt = polishPromptText(
-    formData.prompt.trim(),
-    polishSuffix,
-    `寒江孤舟，雪意朦胧，水波缓缓流动，${polishSuffix}`,
-  );
-};
-
-const { isUploading, uploadProgress, canRetryUpload, chooseImage, retryUpload, cancelUpload } = useImageUpload((image) => {
+const {
+  isUploading,
+  uploadProgress,
+  canRetryUpload,
+  chooseImage,
+  retryUpload,
+  cancelUpload,
+} = useImageUpload((image) => {
   selectedImage.value = image;
   formData.imagePath = image.path;
 });
@@ -246,7 +298,14 @@ const handleChooseImage = () => {
 
 // 保存视频创作参数。
 const saveDraft = async () => {
-  if (isSavingDraft.value || !formData.prompt.trim()) return;
+  formData.prompt = normalizePromptInput(formData.prompt, promptLimit);
+  if (
+    isSavingDraft.value ||
+    isSubmitting.value ||
+    isUploading.value ||
+    !formData.prompt.trim()
+  )
+    return;
   isSavingDraft.value = true;
   try {
     await persistEditingDraft("video", {
@@ -262,15 +321,29 @@ const saveDraft = async () => {
   }
 };
 
-onShow(() => {
+// 从模板入口进入时恢复预填参数，继续允许用户修改。
+onLoad((query) => {
+  if (query?.template === "1") {
+    Object.assign(formData, readCreationDraft(DRAFT_KEYS.video) || {});
+    formData.prompt = limitPromptCharacters(formData.prompt || "", promptLimit);
+    return;
+  }
   const current = getEditingDraft();
-  if (current?.task_type === "video")
+  if (current?.task_type === "video") {
     Object.assign(formData, current.input_data);
+    formData.prompt = limitPromptCharacters(formData.prompt || "", promptLimit);
+  }
 });
 
 // 校验规制与意境后保存草稿，进入画质与渲染页
 const goNext = () => {
-  if (isSubmitting.value || isUploading.value) {
+  formData.prompt = normalizePromptInput(formData.prompt, promptLimit);
+  if (
+    isSubmitting.value ||
+    isUploading.value ||
+    isSavingDraft.value ||
+    isOptimizing.value
+  ) {
     return;
   }
 
@@ -312,6 +385,12 @@ const goNext = () => {
 </script>
 
 <style scoped lang="scss">
+.fixed-tip {
+  display: block;
+  margin-top: 12rpx;
+  color: #6f8179;
+  font-size: 24rpx;
+}
 .flow-body {
   @include flow-body(2);
 }

@@ -10,10 +10,13 @@ import {
   buildOptimizationTaskStatus,
 } from "./image-optimization.js";
 import { isPricedTaskType, quoteCreation } from "./pricing.js";
+import { countPromptCharacters, limitPromptCharacters } from "../utils/prompt.js";
 import {
   buildMockTaskResult,
   cancelMockTask,
   createMockTask,
+  listMockNotifications,
+  readMockNotification,
   readMockTask,
   retryMockTask,
 } from "./tasks.js";
@@ -106,15 +109,53 @@ const resolveTaskAction = (taskId, action) => {
 };
 
 const draftStore = new Map();
+const mockUploadedImages = new Map();
 let draftSequence = 0;
 
 let mockProfile = { user_id: MOCK_LOGIN.user_id, username: "体验用户", account: "demo", avatar_asset_id: null };
 
 const exactRoutes = {
+  "POST /prompts/optimize": (data) => {
+    const limits = { image: 400, optimization: 200, video: 1000 };
+    const limit = limits[data.task_type];
+    const prompt = typeof data.prompt === "string" ? data.prompt.trim() : "";
+    if (!limit || !prompt || countPromptCharacters(prompt) > limit) {
+      return fail(ERROR_CODES.INVALID_PARAMS, "提示词无效");
+    }
+    return ok({ prompt: limitPromptCharacters(`${prompt}，画面细节清晰`, limit) });
+  },
+  "GET /templates": (params) => {
+    const templates = [
+      { id: "image-mountains", title: "晨雾山水", type: "image", description: "青绿山水与晨雾", params: { prompt: "晨雾缭绕的山水，远山层叠，溪边一叶小舟，画面宁静通透", style: "古风水墨", ratio: "16:9" } },
+      { id: "image-cat", title: "午后小猫", type: "image", description: "温暖治愈的生活场景", params: { prompt: "阳光洒在窗边，一只橘猫安静地睡在软垫上，温暖柔和", style: "真实摄影", ratio: "1:1" } },
+      { id: "video-river", title: "溪流远山", type: "video", description: "缓慢移动的自然镜头", params: { prompt: "清晨山间溪水缓缓流动，薄雾掠过远山，镜头平稳向前推进", mode: "text", ratio: "16:9" } },
+      { id: "video-rain", title: "雨后街景", type: "video", description: "细雨与街道光影", params: { prompt: "雨后街道映着柔和灯光，行人撑伞缓缓走过，镜头轻轻移动", mode: "text", ratio: "9:16" } },
+    ];
+    return ok({ items: templates.filter((item) => !params.type || params.type === "all" || item.type === params.type) });
+  },
+  "GET /notifications": (params) => {
+    const tasks = listMockNotifications();
+    const page = Math.max(1, Number(params.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(params.page_size) || 20));
+    return ok({
+      items: tasks.slice((page - 1) * pageSize, page * pageSize).map((task) => ({
+        task_id: task.taskId,
+        task_type: task.type,
+        work_id: null,
+        title: task.payload.title || "创作任务",
+        created_at: new Date(task.createdAt).toISOString(),
+        is_read: Boolean(task.notificationRead),
+      })),
+      total: tasks.length,
+      unread_count: tasks.filter((task) => !task.notificationRead).length,
+      page,
+      page_size: pageSize,
+    });
+  },
   "GET /profile": () => ok({ ...mockProfile }),
   "PUT /profile": (params) => {
     const username = typeof params.username === "string" ? params.username.trim() : "";
-    if (!username || username.length > 64) return fail(ERROR_CODES.INVALID_PARAMS, "昵称须为 1 至 64 字");
+    if (!username || countPromptCharacters(username) > 64) return fail(ERROR_CODES.INVALID_PARAMS, "昵称须为 1 至 64 字");
     mockProfile = { ...mockProfile, username, avatar_asset_id: params.avatar_asset_id || null };
     return ok({ ...mockProfile });
   },
@@ -125,9 +166,21 @@ const exactRoutes = {
     return ok({ items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, page_size: pageSize });
   },
   "POST /drafts": (params) => {
-    if (!params.title?.trim() || !params.input_data || !Object.keys(params.input_data).length) return fail(ERROR_CODES.INVALID_PARAMS, "请填写草稿内容");
+    const title = typeof params.title === "string" ? params.title.trim() : "";
+    const taskTypes = ["image", "optimization", "video"];
+    if (
+      !taskTypes.includes(params.task_type) ||
+      !title ||
+      countPromptCharacters(title) > 50 ||
+      !params.input_data ||
+      typeof params.input_data !== "object" ||
+      Array.isArray(params.input_data) ||
+      !Object.keys(params.input_data).length
+    ) {
+      return fail(ERROR_CODES.INVALID_PARAMS, "草稿内容无效");
+    }
     const id = `draft-${++draftSequence}`;
-    const draft = { ...params, id, updated_at: new Date().toISOString() };
+    const draft = { ...params, title, id, updated_at: new Date().toISOString() };
     draftStore.set(id, draft);
     return ok(draft);
   },
@@ -157,17 +210,23 @@ const exactRoutes = {
     });
   },
   [`POST ${API_PATHS.AUTH_LOGOUT}`]: () => ok(null),
+  "POST /auth/delete-account": (params) => params.password
+    ? ok(null)
+    : fail(ERROR_CODES.INVALID_PARAMS, "请输入密码"),
   [`GET ${API_PATHS.ACCOUNT_OVERVIEW}`]: () => ok(ACCOUNT_OVERVIEW),
-  [`GET ${API_PATHS.POINTS_MY_INFO}`]: (_params, scenario) => {
-    if (scenario === "empty") {
-      return ok({ ...POINTS_INFO, items: [] });
-    }
-
-    return ok(POINTS_INFO);
+  [`GET ${API_PATHS.POINTS_MY_INFO}`]: (params, scenario) => {
+    const page = Math.max(1, Number(params.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(params.page_size) || 20));
+    const items = scenario === "empty" ? [] : POINTS_INFO.items;
+    return ok({ ...POINTS_INFO, page, page_size: pageSize, total: items.length, items: items.slice((page - 1) * pageSize, page * pageSize) });
   },
   [`POST ${API_PATHS.PRICING_QUOTE}`]: (params) => {
     if (!isPricedTaskType(params?.task_type)) {
       return fail(ERROR_CODES.INVALID_PARAMS, "缺少必要参数：task_type");
+    }
+
+    if (params.duration !== undefined && (!Number.isInteger(params.duration) || params.duration < 5 || params.duration > 15)) {
+      return fail(ERROR_CODES.INVALID_PARAMS, "视频时长须为 5 至 15 秒");
     }
 
     return ok(quoteCreation(params));
@@ -208,6 +267,9 @@ const exactRoutes = {
   [`GET ${API_PATHS.VIDEO_CREATION_OPTIONS}`]: () => ok(VIDEO_CREATION_OPTIONS),
   [`GET ${API_PATHS.VIDEO_RENDER_OPTIONS}`]: () => ok(VIDEO_RENDER_OPTIONS),
   [`POST ${API_PATHS.VIDEO_TASKS}`]: (params) => {
+    if (params.duration !== undefined && (!Number.isInteger(params.duration) || params.duration < 5 || params.duration > 15)) {
+      return fail(ERROR_CODES.INVALID_PARAMS, "视频时长须为 5 至 15 秒");
+    }
     if (params?.mode === "image") {
       return createTaskResponse("video", params, ["ratio", "image_path"]);
     }
@@ -219,8 +281,10 @@ const exactRoutes = {
       return fail(ERROR_CODES.INVALID_PARAMS, "缺少必要参数：file_path");
     }
 
+    const uploadId = `upload-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    mockUploadedImages.set(uploadId, params.file_path);
     return ok({
-      upload_id: `upload-${Date.now()}`,
+      upload_id: uploadId,
       url: params.file_path,
       name: params.name || "已选图片",
     });
@@ -228,6 +292,26 @@ const exactRoutes = {
 };
 
 const taskRoutes = [
+  {
+    method: "PUT",
+    pattern: /^\/library\/works\/([^/]+)\/cover$/,
+    handler: (workId, data) => {
+      const work = getMockWorkMedia(workId);
+      const coverUrl = data.cover_asset_id ? mockUploadedImages.get(data.cover_asset_id) : "";
+      if (!work || work.type_name !== "视频创作" || (data.cover_asset_id && !coverUrl)) {
+        return fail(ERROR_CODES.NOT_FOUND, "视频作品或封面不存在");
+      }
+      updateMockWork(workId, { cover_asset_id: data.cover_asset_id || null, cover_url: coverUrl || "" });
+      return ok({ work_id: work.work_id, cover_asset_id: data.cover_asset_id || null, cover_url: coverUrl || "" });
+    },
+  },
+  {
+    method: "PUT",
+    pattern: /^\/notifications\/([^/]+)\/read$/,
+    handler: (taskId) => readMockNotification(taskId)
+      ? ok({ task_id: taskId, is_read: true })
+      : fail(ERROR_CODES.NOT_FOUND, "通知不存在"),
+  },
   ...["GET", "PUT", "DELETE"].map((method) => ({
     method, pattern: /^\/drafts\/([^/]+)$/,
     handler: (id, data) => {
@@ -235,8 +319,19 @@ const taskRoutes = [
       if (!draft) return fail(ERROR_CODES.NOT_FOUND, "草稿不存在或已提交");
       if (method === "GET") return ok(draft);
       if (method === "DELETE") { draftStore.delete(id); return ok({ id }); }
-      if (!data.title?.trim() || draft.task_type !== data.task_type) return fail(ERROR_CODES.INVALID_PARAMS, "草稿内容无效");
-      const updated = { ...draft, ...data, updated_at: new Date().toISOString() };
+      const title = typeof data.title === "string" ? data.title.trim() : "";
+      if (
+        !title ||
+        countPromptCharacters(title) > 50 ||
+        draft.task_type !== data.task_type ||
+        !data.input_data ||
+        typeof data.input_data !== "object" ||
+        Array.isArray(data.input_data) ||
+        !Object.keys(data.input_data).length
+      ) {
+        return fail(ERROR_CODES.INVALID_PARAMS, "草稿内容无效");
+      }
+      const updated = { ...draft, ...data, title, updated_at: new Date().toISOString() };
       draftStore.set(id, updated);
       return ok(updated);
     },
@@ -247,7 +342,7 @@ const taskRoutes = [
     handler: (workId) => {
       const work = getMockWorkMedia(workId);
       return work && work.media_url
-        ? ok({ work_id: work.work_id, media_url: work.media_url, media_type: work.type_name === "视频创作" ? "video" : "image" })
+        ? ok({ work_id: work.work_id, media_url: work.media_url, media_type: work.type_name === "视频创作" ? "video" : "image", cover_asset_id: work.cover_asset_id || null, cover_url: work.cover_url || "" })
         : fail(ERROR_CODES.NOT_FOUND, "作品媒体不存在");
     },
   },
@@ -261,8 +356,10 @@ const taskRoutes = [
     method: "PUT",
     pattern: /^\/library\/works\/([^/]+)$/,
     handler: (workId, params) => {
-      const title = String(params.title || "").trim();
-      if (!title || title.length > 50) return fail(ERROR_CODES.INVALID_PARAMS, "标题须为 1 至 50 字");
+      const title = typeof params.title === "string" ? params.title.trim() : "";
+      if (!title || countPromptCharacters(title) > 50) {
+        return fail(ERROR_CODES.INVALID_PARAMS, "标题须为 1 至 50 字");
+      }
       const work = updateMockWork(workId, { title });
       return work ? ok({ work_id: work.work_id, title: work.title }) : fail(ERROR_CODES.NOT_FOUND, "作品不存在");
     },

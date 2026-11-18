@@ -33,7 +33,7 @@
             {{ data.workTitle }}
           </text>
           <template v-if="data.resultUrl">
-            <image
+            <app-image
               class="result-image"
               :src="data.resultUrl"
               mode="aspectFit"
@@ -73,11 +73,15 @@ import { computed } from "vue";
 import { TASK_STATUS } from "@/apis/constants";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
+import AppImage from "@/components/AppImage/index.vue";
 import GenerationDialog from "@/components/GenerationDialog/index.vue";
 
 const props = defineProps({
   /** 任务进度页面展示数据。 */
-  data: { type: Object, required: true },
+  data: {
+    type: Object,
+    required: true,
+  },
 });
 
 // 任务结束后不再展示进度环，避免与状态标签重复

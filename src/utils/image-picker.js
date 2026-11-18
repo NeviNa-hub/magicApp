@@ -90,3 +90,31 @@ export const chooseSingleImage = (options = {}) =>
       fail: (error) => reject(error),
     });
   });
+
+/**
+ * 选择多张图片，逐张校验并保留每张的失败原因。
+ * @param {number} count 最多选择的图片数量。
+ * @returns {Promise<Array<Object>>} 校验结果。
+ */
+export const chooseImages = (count = 9) => {
+  return new Promise((resolve, reject) => {
+    uni.chooseImage({
+      count,
+      sizeType: ["original", "compressed"],
+      sourceType: ["album"],
+      success: async ({ tempFilePaths = [], tempFiles = [] }) => {
+        const results = await Promise.all(tempFilePaths.map(async (path, index) => {
+          const file = tempFiles[index];
+          const image = { path, name: file?.name || path.split("/").pop() || "已选图片", size: file?.size };
+          try {
+            return { image: await prepareImage(image), error: "" };
+          } catch (error) {
+            return { image, error: error?.message || "图片校验失败" };
+          }
+        }));
+        resolve(results);
+      },
+      fail: reject,
+    });
+  });
+};

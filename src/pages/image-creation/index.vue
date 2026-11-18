@@ -55,6 +55,7 @@
 </template>
 
 <script setup>
+import { onLoad } from "@dcloudio/uni-app";
 import { computed, ref } from "vue";
 
 // #ifdef H5
@@ -70,7 +71,12 @@ import {
 import AppConfigCard from "@/components/AppConfigCard/index.vue";
 import AppFlowButton from "@/components/AppFlowButton/index.vue";
 import CreationPage from "@/components/CreationPage/index.vue";
-import { DRAFT_KEYS, saveCreationDraft } from "@/utils/creation-draft";
+import {
+  DRAFT_KEYS,
+  readCreationDraft,
+  saveCreationDraft,
+} from "@/utils/creation-draft";
+import { limitPromptCharacters } from "@/utils/prompt";
 
 const steps = [
   { label: "落墨构想", state: "active" },
@@ -99,6 +105,19 @@ const ratios = [
 ];
 const selectedStyleId = ref(1);
 const selectedRatio = ref("1:1");
+let templatePrompt = "";
+
+// 模板预填画风和画幅，仍允许在本页调整。
+onLoad((query) => {
+  if (query?.template !== "1") return;
+  const template = readCreationDraft(DRAFT_KEYS.image) || {};
+  selectedStyleId.value =
+    styleOptions.find((item) => item.name === template.style)?.styleId || 1;
+  selectedRatio.value = ratios.some((item) => item.value === template.ratio)
+    ? template.ratio
+    : "1:1";
+  templatePrompt = limitPromptCharacters(template.prompt || "", 400);
+});
 
 const selectedStyleName = computed(
   () =>
@@ -117,6 +136,7 @@ const goNext = () => {
     style: selectedStyleName.value,
     styleId: selectedStyleId.value,
     ratio: selectedRatio.value,
+    prompt: templatePrompt,
   });
   uni.navigateTo({ url: "/pages/image-style/index" });
 };

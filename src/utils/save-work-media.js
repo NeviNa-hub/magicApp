@@ -80,7 +80,15 @@ export const saveWorkMedia = async (media, options = {}) => {
       reject(new Error("当前平台不支持保存到相册"));
       return;
     }
-    save({ filePath: path, success: resolve, fail: () => reject(new Error("保存失败，请检查相册权限或存储空间")) });
+    save({
+      filePath: path,
+      success: resolve,
+      fail: (error) => {
+        const failure = new Error("保存失败，请检查相册权限或存储空间");
+        failure.platformError = error;
+        reject(failure);
+      },
+    });
   });
   // #endif
 };

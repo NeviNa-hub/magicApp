@@ -24,6 +24,44 @@
             </button>
           </view>
           <template v-if="isCompleted && resultUrl">
+            <view
+              v-if="currentType === 'video' && canRename"
+              class="cover-settings"
+            >
+              <private-image
+                v-if="coverId"
+                class="cover-preview"
+                :asset-id="coverId"
+                :mock-url="coverUrl"
+              />
+              <button
+                :disabled="isCoverUploading || isSavingCover"
+                @tap="chooseCover"
+              >
+                {{
+                  isCoverUploading
+                    ? "封面上传中"
+                    : isSavingCover
+                      ? "保存中"
+                      : coverId
+                        ? "更换封面"
+                        : "选择封面"
+                }}
+              </button>
+              <button
+                v-if="coverId"
+                :disabled="isCoverUploading || isSavingCover"
+                @tap="removeCover"
+              >
+                移除封面
+              </button>
+              <button v-if="isCoverUploading" @tap="cancelCoverUpload">
+                取消上传
+              </button>
+              <button v-else-if="canRetryCover" @tap="retryCoverUpload">
+                重试上传
+              </button>
+            </view>
             <video
               v-if="currentType === 'video'"
               :key="videoKey"
@@ -37,48 +75,69 @@
               :original-id="originalId"
               :result-url="resultUrl"
             />
-            <image
+            <app-image
               v-else
               class="result-image"
               :src="resultUrl"
               mode="aspectFit"
               @tap="previewResult"
             />
-            <view v-if="currentType === 'video' && videoError" class="video-error">
+            <view
+              v-if="currentType === 'video' && videoError"
+              class="video-error"
+            >
               <text>视频播放失败，链接可能已过期</text>
-              <app-flow-button variant="secondary" :loading="isRetryingVideo" @click="retryVideo">
+              <app-flow-button
+                variant="secondary"
+                :loading="isRetryingVideo"
+                @click="retryVideo"
+              >
                 重新加载
               </app-flow-button>
             </view>
             <text class="result-hint">{{ typeConfig.resultHint }}</text>
             <view v-if="canRename" class="media-actions">
-              <app-flow-button :loading="isSaving" @click="saveResult">{{
-                currentType === "video" ? "保存视频" : "保存图片"
-              }}</app-flow-button>
+              <app-flow-button :loading="isSaving" @click="saveResult">
+                {{ currentType === "video" ? "保存视频" : "保存图片" }}
+              </app-flow-button>
               <app-flow-button
                 variant="secondary"
                 :loading="isSharing"
                 @click="shareResult"
-                >分享作品</app-flow-button
               >
+                分享作品
+              </app-flow-button>
             </view>
             <view v-if="isSaving" class="download-status">
-              <text>{{ savePhase === "saving" ? "正在保存到相册…" : downloadProgress === null ? "正在准备下载…" : `下载中 ${downloadProgress}%` }}</text>
-              <button v-if="savePhase !== 'saving'" @tap="cancelSave">取消下载</button>
+              <text>
+                {{
+                  savePhase === "saving"
+                    ? "正在保存到相册…"
+                    : downloadProgress === null
+                      ? "正在准备下载…"
+                      : `下载中 ${downloadProgress}%`
+                }}
+              </text>
+              <button v-if="savePhase !== 'saving'" @tap="cancelSave">
+                取消下载
+              </button>
             </view>
           </template>
           <!-- 进度中展示进度环，任务结束后展示状态标签与提示 -->
           <template v-else-if="!isFinished">
             <view class="progress-ring">
-              <text> {{ progress }}<text class="progress-unit">%</text> </text>
+              <text> {{ progress }}<text class="progress-unit">%</text></text>
               <label>{{ progressLabel }}</label>
             </view>
-            <view class="progress-track"
-              ><view :style="{ width: `${progress}%` }"></view
-            ></view>
+            <view class="progress-track">
+              <view :style="{ width: `${progress}%` }"></view>
+            </view>
           </template>
           <view v-if="tip" class="detail-tip">{{ tip }}</view>
-          <view v-if="canCancel" class="detail-task-action">
+          <view
+            v-if="canCancel && !statusUnavailable"
+            class="detail-task-action"
+          >
             <app-flow-button
               variant="danger"
               block
@@ -86,6 +145,15 @@
               @click="cancelTask"
             >
               {{ isCanceling ? "正在取消…" : "取消创作" }}
+            </app-flow-button>
+          </view>
+          <view v-else-if="statusUnavailable" class="detail-task-action">
+            <app-flow-button
+              block
+              :loading="isRefreshingStatus"
+              @click="refreshTaskStatus"
+            >
+              {{ isRefreshingStatus ? "正在查询…" : "重新查询状态" }}
             </app-flow-button>
           </view>
           <view v-else-if="isFailed" class="detail-task-action">
@@ -116,11 +184,13 @@
       :close-on-mask="!isRenaming"
       @close="closeRename"
     >
+      <!-- 预留 emoji 代理对占用的 UTF-16 空间，再由输入事件按 50 个字符截断。 -->
       <input
         v-model="renameTitle"
         class="rename-input"
-        maxlength="50"
+        maxlength="100"
         placeholder="请输入作品标题"
+        @input="renameTitle = normalizePromptInput($event.detail.value, 50)"
       />
       <text v-if="renameError" class="rename-error">{{ renameError }}</text>
       <template #footer>
@@ -137,17 +207,28 @@
         </view>
       </template>
     </app-bottom-sheet>
-    <app-bottom-sheet v-if="isShareVisible" title="分享作品" placement="center" @close="closeShare">
-      <text class="share-note">分享的是媒体原始链接，可能过期，请只分享给信任的人。</text>
+    <app-bottom-sheet
+      v-if="isShareVisible"
+      title="分享作品"
+      placement="center"
+      @close="closeShare"
+    >
+      <text class="share-note"
+        >分享的是媒体原始链接，可能过期，请只分享给信任的人。</text
+      >
       <template #footer>
         <view class="share-actions">
           <!-- #ifdef APP-PLUS -->
           <app-flow-button @click="shareWithSystem">系统分享</app-flow-button>
           <!-- #endif -->
           <!-- #ifdef H5 -->
-          <app-flow-button v-if="canUseWebShare" @click="shareWithSystem">系统分享</app-flow-button>
+          <app-flow-button v-if="canUseWebShare" @click="shareWithSystem"
+            >系统分享</app-flow-button
+          >
           <!-- #endif -->
-          <app-flow-button variant="secondary" @click="copyShareLink">复制链接</app-flow-button>
+          <app-flow-button variant="secondary" @click="copyShareLink"
+            >复制链接</app-flow-button
+          >
         </view>
       </template>
     </app-bottom-sheet>
@@ -159,19 +240,29 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 import { TASK_STATUS } from "@/apis/constants";
-import { getLibraryWorkMedia, updateLibraryWorkTitle } from "@/apis/creation";
+import { USE_MOCK } from "@/apis/config";
+import {
+  getLibraryWorkMedia,
+  updateLibraryWorkCover,
+  updateLibraryWorkTitle,
+} from "@/apis/creation";
 import { getImageOptimizationTaskStatus } from "@/apis/image-optimization";
 import { getImageTaskStatus } from "@/apis/text-to-image";
 import { getVideoTaskStatus } from "@/apis/video-creation";
 import AppBottomSheet from "@/components/AppBottomSheet/index.vue";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppFlowButton from "@/components/AppFlowButton/index.vue";
+import AppImage from "@/components/AppImage/index.vue";
 import ImageComparison from "@/components/ImageComparison/index.vue";
+import PrivateImage from "@/components/PrivateImage/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
 import useTaskActions from "@/hooks/useTaskActions";
 import useTaskPolling from "@/hooks/useTaskPolling";
+import useImageUpload from "@/hooks/useImageUpload";
 import { getErrorMessage, isApiError } from "@/utils/request";
 import { saveWorkMedia } from "@/utils/save-work-media";
+import { countPromptCharacters, normalizePromptInput } from "@/utils/prompt";
+import { showMediaPermissionHelp } from "@/utils/media-permission";
 import {
   buildFailureNote,
   getTaskRefundPoints,
@@ -249,6 +340,10 @@ const isRenameVisible = ref(false);
 const renameTitle = ref("");
 const renameError = ref("");
 const isRenaming = ref(false);
+const coverId = ref(null);
+const coverUrl = ref("");
+const isSavingCover = ref(false);
+let coverGeneration = 0;
 const isSaving = ref(false);
 const savePhase = ref("");
 const downloadProgress = ref(null);
@@ -259,7 +354,8 @@ const isShareVisible = ref(false);
 const shareUrl = ref("");
 let shareGeneration = 0;
 // #ifdef H5
-const canUseWebShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+const canUseWebShare =
+  typeof navigator !== "undefined" && typeof navigator.share === "function";
 // #endif
 const status = ref(TASK_STATUS.PENDING);
 const progress = ref(0);
@@ -269,10 +365,75 @@ const videoError = ref(false);
 const videoKey = ref(0);
 const isRetryingVideo = ref(false);
 let videoRequestId = 0;
+let pollingRefreshGeneration = 0;
 const failureMessage = ref("");
+const statusUnavailable = ref(false);
+const isRefreshingStatus = ref(false);
 const costPoints = ref(null);
 const refundPoints = ref(0);
 const retryCostPoints = ref(0);
+
+/**
+ * 保存封面资源并更新预览。
+ * @param {number|string|null} assetId 本人图片资源标识。
+ * @param {string} localUrl 模拟模式的图片路径。
+ * @returns {Promise<void>} 无返回值。
+ */
+const saveCover = async (assetId, localUrl = "") => {
+  if (isSavingCover.value) return;
+  const version = ++coverGeneration;
+  isSavingCover.value = true;
+  try {
+    const result = await updateLibraryWorkCover(
+      { workId: props.workId },
+      { cover_asset_id: assetId },
+    );
+    if (version !== coverGeneration) return;
+    coverId.value = result.cover_asset_id;
+    coverUrl.value = localUrl;
+    uni.showToast({ title: "封面已更新", icon: "none" });
+  } catch (error) {
+    if (!isApiError(error))
+      uni.showToast({
+        title: getErrorMessage(error, "封面保存失败"),
+        icon: "none",
+      });
+  } finally {
+    if (version === coverGeneration) isSavingCover.value = false;
+  }
+};
+
+const {
+  isUploading: isCoverUploading,
+  canRetryUpload: canRetryCover,
+  chooseImage: chooseCover,
+  retryUpload: retryCoverUpload,
+  cancelUpload: cancelCoverUpload,
+} = useImageUpload((image) => {
+  const assetId = USE_MOCK ? image.uploadId : Number(image.uploadId);
+  saveCover(assetId, image.path);
+});
+
+// 移除关联，不删除用户上传的图片。
+const removeCover = () => {
+  saveCover(null);
+};
+
+// 打开详情时读取已保存的封面。
+const loadCover = async () => {
+  const version = coverGeneration;
+  try {
+    const result = await getLibraryWorkMedia(
+      { workId: props.workId },
+      { silent: true },
+    );
+    if (version !== coverGeneration) return;
+    coverId.value = result.cover_asset_id || null;
+    coverUrl.value = result.cover_url || "";
+  } catch {
+    if (version === coverGeneration) coverId.value = null;
+  }
+};
 
 const typeConfig = computed(() => TYPE_CONFIGS[currentType.value]);
 const displayCost = computed(() => costPoints.value ?? typeConfig.value.cost);
@@ -310,6 +471,10 @@ const progressLabel = computed(() => {
   return typeConfig.value.progressLabel;
 });
 const tip = computed(() => {
+  if (statusUnavailable.value) {
+    return failureMessage.value || "暂时无法获取任务状态，请稍后重试。";
+  }
+
   if (isFailed.value) {
     return failureMessage.value || "任务处理失败，请返回重新尝试。";
   }
@@ -391,6 +556,8 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
   isFailed: (data) => data.status === TASK_STATUS.FAILED,
   isCanceled: (data) => data.status === TASK_STATUS.CANCELED,
   onProgress: (data) => {
+    statusUnavailable.value = false;
+    failureMessage.value = "";
     syncTaskType(data);
     syncTaskCost(data);
     syncTaskBilling(data);
@@ -403,6 +570,8 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
     }
   },
   onCompleted: (data) => {
+    statusUnavailable.value = false;
+    failureMessage.value = "";
     syncTaskType(data);
     syncTaskCost(data);
     syncTaskBilling(data);
@@ -411,8 +580,6 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
     resultUrl.value = data.result_urls?.[0] || "";
   },
   onFailed: (error, data) => {
-    const isRequestError = isApiError(error);
-
     if (data) {
       syncTaskType(data);
       syncTaskCost(data);
@@ -420,22 +587,64 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
     }
 
     status.value = TASK_STATUS.FAILED;
-    failureMessage.value = isRequestError
-      ? "任务状态查询失败，请稍后在作品库确认结果。"
-      : buildFailureNote(
-          data,
-          getErrorMessage(error, "任务进度获取失败，请稍后重试"),
-        );
-
-    if (!isRequestError) {
-      uni.showToast({
-        title: data?.error_message || failureMessage.value,
-        icon: "none",
-      });
-    }
+    failureMessage.value = buildFailureNote(
+      data,
+      getErrorMessage(error, "任务进度获取失败，请稍后重试"),
+    );
+    uni.showToast({
+      title: data?.error_message || failureMessage.value,
+      icon: "none",
+    });
+  },
+  onUnavailable: () => {
+    statusUnavailable.value = true;
+    failureMessage.value = "暂时无法获取任务状态，任务仍可能在处理中。";
   },
   onCanceled: (data) => applyCanceledState(data),
 });
+
+// 状态查询恢复后继续查询当前任务，不重复创建任务或扣费
+const refreshTaskStatus = async () => {
+  if (isRefreshingStatus.value) return;
+  isRefreshingStatus.value = true;
+  const generation = ++pollingRefreshGeneration;
+  statusUnavailable.value = false;
+  try {
+    const data = await fetchTaskStatus();
+    if (generation !== pollingRefreshGeneration) return;
+    statusUnavailable.value = false;
+    syncTaskType(data);
+    syncTaskCost(data);
+    syncTaskBilling(data);
+    status.value = data.status || TASK_STATUS.PROCESSING;
+    progress.value = Number(data.progress) || 0;
+    resultUrl.value = data.result_urls?.[0] || "";
+    if (data.status === TASK_STATUS.COMPLETED) {
+      status.value = TASK_STATUS.COMPLETED;
+      progress.value = 100;
+      failureMessage.value = "";
+      stopPolling();
+      return;
+    }
+    if (data.status === TASK_STATUS.FAILED) {
+      status.value = TASK_STATUS.FAILED;
+      failureMessage.value = buildFailureNote(data, "任务处理失败，请稍后重试");
+    } else if (data.status === TASK_STATUS.CANCELED) {
+      applyCanceledState(data);
+    } else {
+      failureMessage.value = "";
+      if (![TASK_STATUS.COMPLETED, TASK_STATUS.CANCELED].includes(data.status))
+        startPolling();
+    }
+  } catch (error) {
+    if (generation !== pollingRefreshGeneration) return;
+    statusUnavailable.value = true;
+    failureMessage.value = "暂时无法获取任务状态，请检查网络后重试。";
+  } finally {
+    if (generation === pollingRefreshGeneration)
+      isRefreshingStatus.value = false;
+  }
+};
 
 /**
  * 取消成功后停止轮询并展示已取消状态。
@@ -444,6 +653,8 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
  */
 const applyCanceledState = (data = {}) => {
   stopPolling();
+  statusUnavailable.value = false;
+  isRefreshingStatus.value = false;
   syncTaskCost(data);
   syncTaskBilling(data);
   status.value = TASK_STATUS.CANCELED;
@@ -483,8 +694,8 @@ const closeRename = () => {
 const submitRename = async () => {
   if (isRenaming.value || !canRename.value) return;
   const title = renameTitle.value.trim();
-  if (!title) {
-    renameError.value = "请输入作品标题";
+  if (!title || countPromptCharacters(title) > 50) {
+    renameError.value = "请输入 1 至 50 字的作品标题";
     return;
   }
   isRenaming.value = true;
@@ -521,7 +732,8 @@ const saveResult = async () => {
   try {
     const media = await getLibraryWorkMedia({ workId: props.workId });
     if (current !== saveGeneration || signal.aborted) return;
-    if (!/^https?:\/\//i.test(media.media_url || "")) throw new Error("媒体地址不可用");
+    if (!/^https?:\/\//i.test(media.media_url || ""))
+      throw new Error("媒体地址不可用");
     await saveWorkMedia(media, {
       signal,
       onProgress: (progress) => {
@@ -540,7 +752,12 @@ const saveResult = async () => {
     // #endif
   } catch (error) {
     if (current === saveGeneration && !signal.aborted && !isApiError(error)) {
-      uni.showToast({ title: getErrorMessage(error, "保存失败，请稍后重试"), icon: "none" });
+      if (!showMediaPermissionHelp(error.platformError, "保存作品到相册")) {
+        uni.showToast({
+          title: getErrorMessage(error, "保存失败，请稍后重试"),
+          icon: "none",
+        });
+      }
     }
   } finally {
     if (current === saveGeneration) {
@@ -559,12 +776,16 @@ const shareResult = async () => {
   try {
     const media = await getLibraryWorkMedia({ workId: props.workId });
     if (current !== shareGeneration) return;
-    if (!/^https?:\/\//i.test(media.media_url || "")) throw new Error("媒体地址不可用");
+    if (!/^https?:\/\//i.test(media.media_url || ""))
+      throw new Error("媒体地址不可用");
     shareUrl.value = media.media_url;
     isShareVisible.value = true;
   } catch (error) {
     if (current === shareGeneration && !isApiError(error)) {
-      uni.showToast({ title: getErrorMessage(error, "分享失败，请稍后重试"), icon: "none" });
+      uni.showToast({
+        title: getErrorMessage(error, "分享失败，请稍后重试"),
+        icon: "none",
+      });
     }
   } finally {
     if (current === shareGeneration) isSharing.value = false;
@@ -595,10 +816,14 @@ const shareWithSystem = async () => {
   if (!shareUrl.value) return;
   // #ifdef H5
   try {
-    await navigator.share({ title: displayTitle.value || "我的作品", url: shareUrl.value });
+    await navigator.share({
+      title: displayTitle.value || "我的作品",
+      url: shareUrl.value,
+    });
     closeShare();
   } catch (error) {
-    if (error?.name !== "AbortError") uni.showToast({ title: "系统分享不可用，可复制链接", icon: "none" });
+    if (error?.name !== "AbortError")
+      uni.showToast({ title: "系统分享不可用，可复制链接", icon: "none" });
   }
   // #endif
   // #ifdef APP-PLUS
@@ -612,7 +837,11 @@ const shareWithSystem = async () => {
     href: shareUrl.value,
     success: () => closeShare(),
     fail: (error) => {
-      if (!String(error?.errMsg || "").toLowerCase().includes("cancel")) {
+      if (
+        !String(error?.errMsg || "")
+          .toLowerCase()
+          .includes("cancel")
+      ) {
         uni.showToast({ title: "系统分享不可用，可复制链接", icon: "none" });
       }
     },
@@ -631,9 +860,10 @@ const retryVideo = async () => {
   isRetryingVideo.value = true;
   const requestId = ++videoRequestId;
   try {
-    const data = props.from === "library" && Number(props.workId) > 0
-      ? await getLibraryWorkMedia({ workId: props.workId })
-      : await fetchTaskStatus();
+    const data =
+      props.from === "library" && Number(props.workId) > 0
+        ? await getLibraryWorkMedia({ workId: props.workId })
+        : await fetchTaskStatus();
     if (requestId !== videoRequestId) return;
     const url = data.media_url || data.result_urls?.[0];
     if (!url) throw new Error("视频地址不可用，请稍后重试");
@@ -642,7 +872,10 @@ const retryVideo = async () => {
     videoKey.value += 1;
   } catch (error) {
     if (requestId === videoRequestId && !isApiError(error)) {
-      uni.showToast({ title: getErrorMessage(error, "视频加载失败"), icon: "none" });
+      uni.showToast({
+        title: getErrorMessage(error, "视频加载失败"),
+        icon: "none",
+      });
     }
   } finally {
     if (requestId === videoRequestId) isRetryingVideo.value = false;
@@ -686,12 +919,14 @@ watch(
 );
 
 onUnmounted(() => {
+  coverGeneration += 1;
   cancelSave();
   videoRequestId += 1;
   shareGeneration += 1;
 });
 
 onMounted(() => {
+  if (props.workId && props.type === "video") loadCover();
   if (!props.taskId) {
     uni.showToast({ title: "缺少任务标识", icon: "none" });
     return;
@@ -702,6 +937,19 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+.cover-settings {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.cover-preview {
+  width: 120rpx;
+  height: 80rpx;
+  border-radius: 12rpx;
+}
 .task-detail {
   @include page-shell;
 }

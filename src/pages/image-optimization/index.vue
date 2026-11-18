@@ -17,9 +17,19 @@
                   : "导入图片"
             }}
           </button>
-          <text v-if="isUploading">{{ uploadProgress === null ? "正在准备图片…" : `上传中 ${uploadProgress}%` }}</text>
-          <button v-if="isUploading" @click.stop="cancelUpload">取消上传</button>
-          <button v-else-if="canRetryUpload" @click.stop="retryUpload">重试上传</button>
+          <text v-if="isUploading">
+            {{
+              uploadProgress === null
+                ? "正在准备图片…"
+                : `上传中 ${uploadProgress}%`
+            }}
+          </text>
+          <button v-if="isUploading" @click.stop="cancelUpload">
+            取消上传
+          </button>
+          <button v-else-if="canRetryUpload" @click.stop="retryUpload">
+            重试上传
+          </button>
         </view>
         <view
           class="preview"
@@ -45,22 +55,40 @@
             <!-- #endif -->
           </view>
         </view>
-        <text class="hint">支持 JPEG、PNG、WebP，最大 5 MB、2500 万像素；超限 JPEG 将尝试压缩</text>
+        <text class="hint">
+          支持 JPEG、PNG、WebP，最大 5 MB、2500 万像素；超限 JPEG 将尝试压缩
+        </text>
+        <button @click="openBatchOptimization">批量优化</button>
       </app-config-card>
 
       <app-config-card index="贰" title="优化提示词">
         <template #extra>
           <text class="prompt-count">
-            {{ prompt.length }} / {{ promptLimit }} 字
+            {{ promptCharacterCount }} / {{ promptLimit }} 字
           </text>
         </template>
         <textarea
           v-model="prompt"
-          :maxlength="promptLimit"
+          :maxlength="promptLimit * 2"
+          @input="
+            prompt = normalizePromptInput($event.detail.value, promptLimit)
+          "
           class="prompt-input"
           placeholder="描述希望优化的效果，例如：提升清晰度，修复噪点，保留原有构图"
         />
         <text class="fixed-tip">{{ costNote }}</text>
+        <button
+          :disabled="isOptimizing || isSubmitting"
+          @click="promptOptimizer?.optimize()"
+        >
+          {{ isOptimizing ? "优化中…" : "AI 优化提示词" }}
+        </button>
+        <text class="fixed-tip">
+          AI 优化会将提示词发送至硅基流动，不消耗项目积分。
+        </text>
+        <button v-if="!costQuote" @click="refreshQuote">
+          报价加载中或失败，点击重试
+        </button>
       </app-config-card>
     </view>
 
@@ -69,11 +97,12 @@
         variant="secondary"
         :loading="isSavingDraft"
         @click="saveDraft"
-        >保存草稿</app-flow-button
       >
+        保存草稿
+      </app-flow-button>
       <app-flow-button
         block
-        :disabled="!selectedImage || isUploading"
+        :disabled="!selectedImage || isUploading || !costQuote || isOptimizing"
         :loading="isSubmitting"
         @click="startOptimization"
       >
@@ -87,6 +116,13 @@
     </template>
 
     <template #overlay>
+      <prompt-optimizer
+        ref="promptOptimizer"
+        v-model="prompt"
+        task-type="optimization"
+        :limit="promptLimit"
+        @loading="isOptimizing = $event"
+      />
       <generation-dialog
         v-if="isProgressVisible"
         type="optimization"
@@ -99,8 +135,11 @@
         :original-id="String(taskOriginalImage?.uploadId || '')"
         :canceling="isCanceling"
         :retrying="isRetrying"
+        :status-unavailable="statusUnavailable"
+        :refreshing="isRefreshingStatus"
         @cancel="cancelTask"
         @retry="retryTask"
+        @refresh="refreshTaskStatus"
         @back="goWorkbench"
         @library="goLibrary"
       />
@@ -109,19 +148,20 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onUnmounted, ref } from "vue";
 
 // #ifdef H5
 import { MagicStick, Plus, Upload, ZoomIn } from "@element-plus/icons-vue";
 // #endif
 
-import { USE_MOCK } from "@/apis/config";
+import { API_BASE_URL, IS_API_BASE_URL_VALID, USE_MOCK } from "@/apis/config";
 import { TASK_STATUS } from "@/apis/constants";
 import { getImageOptimizationTaskStatus } from "@/apis/image-optimization";
 import AppConfigCard from "@/components/AppConfigCard/index.vue";
 import AppFlowButton from "@/components/AppFlowButton/index.vue";
 import AppImage from "@/components/AppImage/index.vue";
 import CreationPage from "@/components/CreationPage/index.vue";
+import PromptOptimizer from "@/components/PromptOptimizer/index.vue";
 import GenerationDialog from "@/components/GenerationDialog/index.vue";
 import useCreationQuote from "@/hooks/useCreationQuote";
 import useImageUpload from "@/hooks/useImageUpload";
@@ -135,48 +175,91 @@ import {
 } from "@/utils/creation-draft";
 import { submitImageOptimization } from "@/utils/image-optimization";
 import { getErrorMessage, isApiError } from "@/utils/request";
+import { getToken } from "@/utils/auth";
+import {
+  countPromptCharacters,
+  limitPromptCharacters,
+  normalizePromptInput,
+} from "@/utils/prompt";
 import {
   buildFailureNote,
   getTaskRefundPoints,
   getTaskRetryCost,
 } from "@/utils/task-refund";
 
-const DEFAULT_OPTIMIZATION_COST = 1;
-const promptLimit = 200;
-const progressNote = "已投入云端淬炼池，离开页面不影响任务进度。";
+const promptLimit = 200; // 最大字符数
+const promptCharacterCount = computed(() =>
+  countPromptCharacters(prompt.value),
+);
+const progressNote = "已投入云端优化池，离开页面不影响任务进度。";
 const prompt = ref("");
 const selectedImage = ref(null);
 const taskOriginalImage = ref(null);
 const isSavingDraft = ref(false);
+const isOptimizing = ref(false);
+const promptOptimizer = ref(null);
+let draftImageTask = null;
 const editingDraft = getEditingDraft();
 if (editingDraft?.task_type === "optimization") {
-  prompt.value = editingDraft.input_data.prompt || "";
+  prompt.value = limitPromptCharacters(
+    editingDraft.input_data.prompt || "",
+    promptLimit,
+  );
   if (editingDraft.input_data.upload_id)
     selectedImage.value = {
       name: "已上传图片",
       uploadId: editingDraft.input_data.upload_id,
     };
 }
+
+// 草稿只存资源标识，通过鉴权下载恢复图片预览。
+if (
+  editingDraft?.task_type === "optimization" &&
+  selectedImage.value?.uploadId &&
+  !USE_MOCK
+) {
+  const token = getToken();
+  const uploadId = selectedImage.value.uploadId;
+  if (token && IS_API_BASE_URL_VALID) {
+    draftImageTask = uni.downloadFile({
+      url: `${API_BASE_URL}/uploads/images/${encodeURIComponent(uploadId)}`,
+      header: { Authorization: `Bearer ${token}` },
+      success: (result) => {
+        if (
+          result.statusCode === 200 &&
+          selectedImage.value?.uploadId === uploadId
+        ) {
+          selectedImage.value = {
+            ...selectedImage.value,
+            path: result.tempFilePath,
+          };
+        }
+      },
+    });
+  }
+}
+onUnmounted(() => draftImageTask?.abort());
 const isSubmitting = ref(false);
 const isProgressVisible = ref(false);
 const taskId = ref("");
 const taskProgress = ref(0);
 const taskStatus = ref(TASK_STATUS.PENDING);
+const statusUnavailable = ref(false);
+const isRefreshingStatus = ref(false);
 const taskResultUrl = ref("");
 const taskNote = ref(progressNote);
 const taskRetryCost = ref(0);
 
-const { quote: costQuote } = useCreationQuote({
-  getParams: () => ({
-    task_type: "optimization",
-    prompt: prompt.value.trim(),
-  }),
+const { quote: costQuote, refreshQuote } = useCreationQuote({
+  getParams: () => {
+    prompt.value = normalizePromptInput(prompt.value, promptLimit);
+    return { task_type: "optimization", prompt: prompt.value.trim() };
+  },
 });
 
-const costText = computed(
-  () => costQuote.value?.cost_points ?? DEFAULT_OPTIMIZATION_COST,
-);
+const costText = computed(() => costQuote.value?.cost_points ?? "—");
 const costNote = computed(() => {
+  if (!costQuote.value) return "正在获取报价，失败时请点击重试。";
   const tokens = costQuote.value?.total_tokens;
   const tokenText = tokens ? `（约 ${tokens} tokens）` : "";
 
@@ -207,6 +290,8 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
   isFailed: (data) => data.status === TASK_STATUS.FAILED,
   isCanceled: (data) => data.status === TASK_STATUS.CANCELED,
   onProgress: (data) => {
+    statusUnavailable.value = false;
+    isRefreshingStatus.value = false;
     taskStatus.value = data.status || TASK_STATUS.PROCESSING;
     taskProgress.value = Number(data.progress) || 0;
 
@@ -215,29 +300,29 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
     }
   },
   onCompleted: (data) => {
+    isRefreshingStatus.value = false;
     taskStatus.value = TASK_STATUS.COMPLETED;
     taskProgress.value = 100;
     taskResultUrl.value = data.result_urls?.[0] || "";
     taskNote.value = "任务已完成，可前往作品库查看。";
   },
   onFailed: (error, data) => {
-    const isRequestError = isApiError(error);
-
+    isRefreshingStatus.value = false;
     taskStatus.value = TASK_STATUS.FAILED;
     taskRetryCost.value = getTaskRetryCost(data);
-    taskNote.value = isRequestError
-      ? "任务状态查询失败，请稍后在作品库确认结果。"
-      : buildFailureNote(
-          data,
-          getErrorMessage(error, "任务进度获取失败，请稍后重试"),
-        );
-
-    if (!isRequestError) {
-      uni.showToast({
-        title: data?.error_message || taskNote.value,
-        icon: "none",
-      });
-    }
+    taskNote.value = buildFailureNote(
+      data,
+      getErrorMessage(error, "任务进度获取失败，请稍后重试"),
+    );
+    uni.showToast({
+      title: data?.error_message || taskNote.value,
+      icon: "none",
+    });
+  },
+  onUnavailable: () => {
+    isRefreshingStatus.value = false;
+    statusUnavailable.value = true;
+    taskNote.value = "暂时无法获取任务状态，任务仍可能在处理中。";
   },
   onCanceled: (data) => applyCanceledState(data),
 });
@@ -245,6 +330,8 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
 // 任务取消后停止轮询，弹窗切换为已取消状态
 const applyCanceledState = (data = {}) => {
   stopPolling();
+  isRefreshingStatus.value = false;
+  statusUnavailable.value = false;
   taskStatus.value = TASK_STATUS.CANCELED;
   taskResultUrl.value = "";
   taskRetryCost.value = 0;
@@ -257,11 +344,20 @@ const applyCanceledState = (data = {}) => {
       : "创作已取消。";
 };
 
+// 状态查询恢复后继续查询原任务，不重新创建或扣费
+const refreshTaskStatus = () => {
+  if (isRefreshingStatus.value) return;
+  isRefreshingStatus.value = true;
+  statusUnavailable.value = false;
+  startPolling();
+};
+
 const { cancelTask, retryTask, isCanceling, isRetrying } = useTaskActions({
   getTaskId: () => taskId.value,
   getRetryCost: () => taskRetryCost.value,
   onCanceled: (data) => applyCanceledState(data),
   onRetried: () => {
+    statusUnavailable.value = false;
     taskStatus.value = TASK_STATUS.PENDING;
     taskProgress.value = 0;
     taskResultUrl.value = "";
@@ -271,7 +367,14 @@ const { cancelTask, retryTask, isCanceling, isRetrying } = useTaskActions({
   },
 });
 
-const { isUploading, uploadProgress, canRetryUpload, chooseImage, retryUpload, cancelUpload } = useImageUpload((image) => {
+const {
+  isUploading,
+  uploadProgress,
+  canRetryUpload,
+  chooseImage,
+  retryUpload,
+  cancelUpload,
+} = useImageUpload((image) => {
   selectedImage.value = image;
 });
 
@@ -280,9 +383,16 @@ const handleChooseImage = () => {
   if (!isSubmitting.value) chooseImage();
 };
 
+// 批量入口创建独立任务，不复用当前草稿。
+const openBatchOptimization = () => {
+  if (isSubmitting.value || isSavingDraft.value || isUploading.value) return;
+  uni.navigateTo({ url: "/pages/batch-optimization/index" });
+};
+
 // 保存优化草稿，只记录已上传的资源标识。
 const saveDraft = async () => {
-  if (isSavingDraft.value || isUploading.value) return;
+  prompt.value = normalizePromptInput(prompt.value, promptLimit);
+  if (isSavingDraft.value || isUploading.value || isSubmitting.value) return;
   if (!selectedImage.value?.uploadId) {
     uni.showToast({ title: "请先上传图片", icon: "none" });
     return;
@@ -303,7 +413,14 @@ const saveDraft = async () => {
 
 // 校验图片后开始优化任务
 const startOptimization = async () => {
-  if (isSubmitting.value || isUploading.value) {
+  prompt.value = normalizePromptInput(prompt.value, promptLimit);
+  if (
+    isSubmitting.value ||
+    isUploading.value ||
+    isSavingDraft.value ||
+    isOptimizing.value ||
+    !costQuote.value
+  ) {
     return;
   }
 
@@ -324,8 +441,7 @@ const startOptimization = async () => {
     const task = await submitImageOptimization({
       ...(USE_MOCK
         ? {
-            image_path:
-              submittedImage.path || submittedImage.uploadId,
+            image_path: submittedImage.path || submittedImage.uploadId,
           }
         : { upload_id: submittedImage.uploadId }),
       prompt: prompt.value.trim(),

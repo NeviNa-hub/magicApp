@@ -11,6 +11,7 @@
       </text>
     </view>
     <points-dialog v-model="isPointsDialogVisible" />
+    <view v-if="networkNotice" class="network-notice">{{ networkNotice }}</view>
   </view>
 </template>
 
@@ -19,6 +20,7 @@ import { computed, onMounted, ref } from "vue";
 
 import PointsDialog from "@/components/PointsDialog/index.vue";
 import { loadPointsBalance, pointsState } from "@/stores";
+import { networkStatus } from "@/utils/network-status";
 
 /**
  * @property {string} title 页头标题。
@@ -37,10 +39,16 @@ const TOP_LEVEL_ROUTES = [
   "pages/library/index",
   "pages/under-development/index",
   "pages/profile/index",
+  "pages/workshop/index",
 ];
 
 const canGoBack = ref(false);
 const isPointsDialogVisible = ref(false);
+const networkNotice = computed(() => {
+  if (!networkStatus.isConnected) return "网络已断开，请检查连接后重试";
+  if (networkStatus.type === "2g") return "当前网络可能较慢，请耐心等待";
+  return "";
+});
 const pointsText = computed(() =>
   pointsState.balance === null ? "—" : pointsState.balance,
 );
@@ -101,6 +109,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .app-page-header {
+  position: relative;
   height: calc(#{100rpx} + var(--status-bar-height, 0px));
   padding: var(--status-bar-height, 0px) 32rpx 0;
   box-sizing: border-box;
@@ -109,6 +118,19 @@ onMounted(() => {
   border-bottom: 1rpx solid rgba(184, 134, 78, 0.18);
   background: #ffecd2;
   color: $color-primary-deep;
+}
+
+.network-notice {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  right: 0;
+  padding: 8rpx 20rpx;
+  background: #fff2df;
+  color: #8b5b2e;
+  font-size: 24rpx;
+  text-align: center;
 }
 
 .header-title {

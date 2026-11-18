@@ -1,4 +1,5 @@
 <template>
+  <!-- 创作模式轮播图 -->
   <view class="inspiration-carousel">
     <view
       v-if="creations.length"
@@ -56,6 +57,7 @@
 import { ref } from "vue";
 
 import AppStateHint from "@/components/AppStateHint/index.vue";
+import { clearEditingDraft } from "@/utils/creation-draft";
 
 const creations = [
   {
@@ -107,6 +109,7 @@ const openCreation = (url) => {
     return;
   }
 
+  clearEditingDraft();
   uni.navigateTo({ url });
 };
 
@@ -135,7 +138,9 @@ const getCardPosition = (index) => {
     return "active";
   }
 
-  return index === (currentCreation.value + 1) % creationCount ? "right" : "left";
+  return index === (currentCreation.value + 1) % creationCount
+    ? "right"
+    : "left";
 };
 
 /**
@@ -208,7 +213,10 @@ const handleTouchEnd = (event) => {
   box-sizing: border-box;
   border: 1rpx solid rgba(255, 255, 255, 0.9);
   border-radius: 48rpx;
-  transition: transform 0.6s ease, opacity 0.6s ease, filter 0.6s ease;
+  transition:
+    transform 0.6s ease,
+    opacity 0.6s ease,
+    filter 0.6s ease;
   pointer-events: none;
 }
 

@@ -2,6 +2,7 @@
 import { PAGE_PATHS } from "@/apis/constants";
 import { getLastPage, rememberPage } from "@/router";
 import { getToken } from "@/utils/auth";
+import { startNetworkStatus, stopNetworkStatus } from "@/utils/network-status";
 
 export default {
   onLaunch() {
@@ -25,6 +26,7 @@ export default {
     // #endif
   },
   onShow() {
+    startNetworkStatus();
     // 记录当前页面，作为刷新后恢复页面的依据。
     const pages = getCurrentPages();
     const currentRoute = pages[pages.length - 1]?.route as string | undefined;
@@ -34,6 +36,9 @@ export default {
     }
 
     rememberPage(`/${currentRoute}`);
+  },
+  onHide() {
+    stopNetworkStatus();
   },
 };
 </script>

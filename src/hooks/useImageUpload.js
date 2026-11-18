@@ -4,6 +4,7 @@ import { uploadImage } from "@/apis/upload";
 import { ERROR_CODES } from "@/apis/constants";
 import { chooseSingleImage } from "@/utils/image-picker";
 import { getErrorMessage } from "@/utils/request";
+import { showMediaPermissionHelp } from "@/utils/media-permission";
 
 /**
  * 管理单张图片的选择、上传、取消和重试。
@@ -82,7 +83,9 @@ const useImageUpload = (onUploaded) => {
       await retryUpload();
     } catch (error) {
       if (current === generation && !String(error?.errMsg || "").includes("cancel")) {
-        uni.showToast({ title: getErrorMessage(error, "选择图片失败"), icon: "none" });
+        if (!showMediaPermissionHelp(error, "选择或拍摄图片")) {
+          uni.showToast({ title: getErrorMessage(error, "选择图片失败"), icon: "none" });
+        }
       }
     } finally {
       if (current === generation) isUploading.value = false;

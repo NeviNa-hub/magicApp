@@ -41,7 +41,13 @@
                 ]
             },
             /* ios打包配置 */
-            "ios" : {},
+            "ios" : {
+                "privacyDescription" : {
+                    "NSPhotoLibraryUsageDescription" : "用于选择图片进行创作或设置头像和封面。",
+                    "NSPhotoLibraryAddUsageDescription" : "用于将生成的图片和视频保存到相册。",
+                    "NSCameraUsageDescription" : "用于拍摄图片进行创作或设置头像和封面。"
+                }
+            },
             /* SDK配置 */
             "sdkConfigs" : {}
         }

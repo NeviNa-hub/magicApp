@@ -5,7 +5,7 @@
  * 业务层只拿到 `data`；非 200 code 与网络异常统一抛出 ApiError，请求层统一提示错误，
  * 会话失效时清理凭据并返回登录页。
  */
-import { API_BASE_URL, REQUEST_TIMEOUT } from "@/apis/config";
+import { API_BASE_URL, IS_API_BASE_URL_VALID, REQUEST_TIMEOUT } from "@/apis/config";
 import { ERROR_CODES, PAGE_PATHS } from "@/apis/constants";
 import { getToken } from "@/utils/auth";
 import { clearSession } from "@/stores";
@@ -267,42 +267,59 @@ const sendRequest = (config) =>
  * @returns {Promise<*>} 接口 data；开启 includeMessage 时返回合并了顶层 message 的 data 对象。
  */
 export default function request(config) {
+  if (!IS_API_BASE_URL_VALID) {
+    const error = new ApiError(ERROR_CODES.SERVER_ERROR, "服务地址未配置，请联系管理员");
+    showRequestError(error, config.silent);
+    return Promise.reject(error);
+  }
   const method = (config.method || "GET").toUpperCase();
   const params = normalizeParams(config.params);
   const timeout = config.timeout || REQUEST_TIMEOUT;
+  const requestToken = getToken();
 
-  // 相同 GET 请求在飞行中直接复用，避免重复渲染与竞态覆盖
-  if (method === "GET" && !config.signal) {
-    const key = buildRequestKey(method, config.url, params);
-
-    if (pendingRequests.has(key)) {
-      return pendingRequests.get(key);
-    }
-
-    const promise = sendRequest({
-      ...config,
-      method,
-      params,
-      timeout,
-    })
-      .catch((error) => {
-        showRequestError(error, config.silent);
-        throw error;
-      })
-      .finally(() => pendingRequests.delete(key));
-
-    pendingRequests.set(key, promise);
-
-    return promise;
-  }
-
-  return sendRequest({
+  // 会话变化后的旧响应不能写入新账号的页面或触发新账号退出。
+  const runRequest = () => sendRequest({
     ...config,
     method,
     params,
     timeout,
+  }).then((data) => {
+    if (getToken() !== requestToken) {
+      throw new ApiError(ERROR_CODES.REQUEST_ABORTED, "会话已变化");
+    }
+    return data;
   }).catch((error) => {
+    if (getToken() !== requestToken) {
+      throw new ApiError(ERROR_CODES.REQUEST_ABORTED, "会话已变化");
+    }
     showRequestError(error, config.silent);
     throw error;
   });
+
+  // 相同 GET 请求在飞行中直接复用，避免重复渲染与竞态覆盖
+  if (method === "GET" && !config.signal) {
+    const key = buildRequestKey(method, config.url, params);
+    const options = JSON.stringify({
+      header: config.header || {},
+      timeout,
+      silent: Boolean(config.silent),
+      includeMessage: Boolean(config.includeMessage),
+    });
+    const existing = pendingRequests.get(key);
+
+    if (existing?.token === requestToken && existing.options === options) {
+      return existing.promise;
+    }
+
+    const entry = { token: requestToken, options, promise: null };
+    entry.promise = runRequest().finally(() => {
+      if (pendingRequests.get(key) === entry) pendingRequests.delete(key);
+    });
+
+    pendingRequests.set(key, entry);
+
+    return entry.promise;
+  }
+
+  return runRequest();
 }

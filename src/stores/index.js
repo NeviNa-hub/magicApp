@@ -6,7 +6,7 @@ import { reactive } from "vue";
 import { clearLastPage } from "@/router";
 import { removeToken, setToken } from "@/utils/auth";
 
-import { pointsState } from "./points";
+import { resetPointsState } from "./points";
 
 const SESSION_USER_STORAGE_KEY = "magic_app_session_user";
 
@@ -29,6 +29,7 @@ export const sessionState = reactive({
  * @returns {void}
  */
 export const initializeSession = (data) => {
+  resetPointsState();
   setToken(data.access_token);
   sessionState.user = {
     userId: data.user_id,
@@ -57,9 +58,7 @@ export const clearSession = () => {
   clearLastPage();
   uni.removeStorageSync("editing_draft");
   // 切换账号时清空积分缓存，避免展示上一个账号的余额。
-  pointsState.balance = null;
-  pointsState.usedPoints = null;
-  pointsState.loaded = false;
+  resetPointsState();
 };
 
 export * from "./points";

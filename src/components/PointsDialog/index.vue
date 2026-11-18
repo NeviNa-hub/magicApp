@@ -33,16 +33,35 @@
       action-text="重新加载"
       @action="loadPointsInfo"
     />
-    <view v-else-if="items.length" class="points-list">
+    <scroll-view v-else-if="items.length" scroll-y class="points-list">
       <view v-for="item in items" :key="item.ledger_id" class="points-item">
-        <text class="points-item-time">
-          {{ formatDateTime(item.created_at) }}
-        </text>
+        <view class="points-item-details">
+          <text class="points-item-reason">
+            {{ reasonText(item.reason) }}
+          </text>
+          <text class="points-item-time">
+            {{ formatDateTime(item.created_at) }}
+          </text>
+        </view>
         <text class="points-item-value" :class="{ 'is-used': item.delta < 0 }">
           {{ item.delta > 0 ? "+" + item.delta : item.delta }}
         </text>
       </view>
-    </view>
+      <button
+        v-if="items.length < total"
+        class="points-more"
+        :disabled="isLoadingMore"
+        @tap="loadMorePoints"
+      >
+        {{
+          isLoadingMore
+            ? "加载中…"
+            : moreError
+              ? "加载失败，点击重试"
+              : "加载更多"
+        }}
+      </button>
+    </scroll-view>
     <app-state-hint
       v-else
       class="points-state"
@@ -54,7 +73,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 
 import { getPointsInfo } from "@/apis/points";
 import AppBottomSheet from "@/components/AppBottomSheet/index.vue";
@@ -78,6 +97,28 @@ const emit = defineEmits(["update:modelValue"]);
 const items = ref([]);
 const isLoading = ref(false);
 const loadError = ref(false);
+const isLoadingMore = ref(false);
+const moreError = ref(false);
+const currentPage = ref(0);
+const total = ref(0);
+let requestVersion = 0;
+
+/**
+ * 将流水原因转换为易读文案。
+ * @param {string} reason 流水原因。
+ * @returns {string} 展示文案。
+ */
+const reasonText = (reason) => {
+  const labels = {
+    image_generation: "文字生图",
+    image_optimization: "图片优化",
+    video_generation: "视频创作",
+    task_retry_charge: "任务重试",
+    task_cancel_refund: "取消任务退款",
+    task_fail_refund: "任务失败退款",
+  };
+  return labels[reason] || "积分变动";
+};
 
 const pointsText = computed(() =>
   pointsState.balance === null ? "—" : pointsState.balance,
@@ -91,26 +132,64 @@ const usedPointsText = computed(() =>
  * @returns {Promise<void>}
  */
 const loadPointsInfo = async () => {
+  const version = ++requestVersion;
   isLoading.value = true;
   loadError.value = false;
+  moreError.value = false;
+  isLoadingMore.value = false;
+  currentPage.value = 0;
+  total.value = 0;
+  items.value = [];
 
   try {
-    const data = await getPointsInfo({ page: 1, page_size: POINTS_PAGE_SIZE });
+    const data = await getPointsInfo(
+      { page: 1, page_size: POINTS_PAGE_SIZE },
+      { silent: true },
+    );
+    if (version !== requestVersion) return;
 
     setPointsBalance({
       balance: data.points_balance,
       usedPoints: data.used_points,
     });
     items.value = data.items;
-  } catch (error) {
-    loadError.value = true;
+    currentPage.value = data.page;
+    total.value = data.total;
+  } catch {
+    if (version === requestVersion) loadError.value = true;
   } finally {
-    isLoading.value = false;
+    if (version === requestVersion) isLoading.value = false;
+  }
+};
+
+// 分页读取更多流水，失败时保留已有记录。
+const loadMorePoints = async () => {
+  if (isLoadingMore.value || items.value.length >= total.value) return;
+  const version = requestVersion;
+  isLoadingMore.value = true;
+  moreError.value = false;
+  try {
+    const data = await getPointsInfo(
+      { page: currentPage.value + 1, page_size: POINTS_PAGE_SIZE },
+      { silent: true },
+    );
+    if (version !== requestVersion) return;
+    const knownIds = new Set(items.value.map((item) => item.ledger_id));
+    items.value = items.value.concat(
+      data.items.filter((item) => !knownIds.has(item.ledger_id)),
+    );
+    currentPage.value = data.page;
+    total.value = data.total;
+  } catch {
+    if (version === requestVersion) moreError.value = true;
+  } finally {
+    if (version === requestVersion) isLoadingMore.value = false;
   }
 };
 
 // 关闭弹窗并通知父级同步显隐
 const closeDialog = () => {
+  requestVersion += 1;
   emit("update:modelValue", false);
 };
 
@@ -120,10 +199,15 @@ watch(
   (visible) => {
     if (visible) {
       loadPointsInfo();
+    } else {
+      requestVersion += 1;
     }
   },
   { immediate: true },
 );
+onUnmounted(() => {
+  requestVersion += 1;
+});
 </script>
 
 <style scoped lang="scss">
@@ -161,6 +245,7 @@ watch(
 
 .points-list {
   margin-top: 16rpx;
+  height: 40vh;
 }
 
 .points-item {
@@ -170,13 +255,23 @@ watch(
   border-bottom: 1rpx solid $color-line;
 }
 
-.points-item-time {
+.points-item-details {
   flex: 1;
   min-width: 0;
+}
+
+.points-item-reason,
+.points-item-time {
+  display: block;
   color: #4e665e;
-  font-size: 28rpx;
+  font-size: 24rpx;
   line-height: 1.6;
   @include text-ellipsis;
+}
+
+.points-more {
+  margin: 16rpx 0;
+  font-size: 24rpx;
 }
 
 .points-item-value {

@@ -4,21 +4,27 @@
       <app-config-card index="壹" title="画面主旨">
         <template #extra>
           <text class="prompt-count">
-            {{ prompt.length }} / {{ promptLimit }} 字
+            {{ promptCharacterCount }} / {{ promptLimit }} 字
           </text>
         </template>
         <textarea
           v-model="prompt"
-          :maxlength="promptLimit"
+          :maxlength="promptLimit * 2"
+          @input="
+            prompt = normalizePromptInput($event.detail.value, promptLimit)
+          "
           class="prompt-input"
           placeholder="写下你想描绘的意象"
         />
         <view class="prompt-tools">
-          <button @click="polishPrompt">
+          <button
+            :disabled="isOptimizing || isSubmitting"
+            @click="promptOptimizer?.optimize()"
+          >
             <!-- #ifdef H5 -->
             <el-icon class="tool-icon"><MagicStick /></el-icon>
             <!-- #endif -->
-            灵感润色
+            {{ isOptimizing ? "优化中…" : "AI 优化" }}
           </button>
           <button @click="randomPrompt">
             <!-- #ifdef H5 -->
@@ -28,7 +34,13 @@
           </button>
           <text @click="prompt = ''">清空</text>
         </view>
+        <text class="fixed-tip">
+          AI 优化会将提示词发送至硅基流动，不消耗项目积分。
+        </text>
       </app-config-card>
+      <button v-if="!costQuote" @click="refreshQuote">
+        报价加载中或失败，点击重试
+      </button>
 
       <app-config-card index="贰" title="灵感引线">
         <view class="suggestions">
@@ -42,7 +54,7 @@
         </view>
       </app-config-card>
 
-      <app-config-card index="叁" title="画境点睛">
+      <app-config-card index="叁" title="画境示意">
         <view class="tuning-grid">
           <view class="tuning-row">
             <text class="tuning-label">意境基调</text>
@@ -71,12 +83,24 @@
       >
         上一步
       </app-flow-button>
-      <app-flow-button block :loading="isSubmitting" @click="handleSubmit">
+      <app-flow-button
+        block
+        :loading="isSubmitting"
+        :disabled="!costQuote || isOptimizing"
+        @click="handleSubmit"
+      >
         {{ isSubmitting ? "任务创建中…" : "开始研墨成画 →" }}
       </app-flow-button>
     </template>
 
     <template #overlay>
+      <prompt-optimizer
+        ref="promptOptimizer"
+        v-model="prompt"
+        task-type="image"
+        :limit="promptLimit"
+        @loading="isOptimizing = $event"
+      />
       <confirm-generation-dialog
         v-if="confirmVisible"
         title="确认研墨成画"
@@ -100,8 +124,11 @@
         :result-url="taskResultUrl"
         :canceling="isCanceling"
         :retrying="isRetrying"
+        :status-unavailable="statusUnavailable"
+        :refreshing="isRefreshingStatus"
         @cancel="cancelTask"
         @retry="retryTask"
+        @refresh="refreshTaskStatus"
         @back="uni.redirectTo({ url: '/pages/workbench/index' })"
         @library="uni.navigateTo({ url: '/pages/library/index' })"
       />
@@ -129,6 +156,7 @@ import AppConfigCard from "@/components/AppConfigCard/index.vue";
 import AppFlowButton from "@/components/AppFlowButton/index.vue";
 import ConfirmGenerationDialog from "@/components/ConfirmGenerationDialog/index.vue";
 import CreationPage from "@/components/CreationPage/index.vue";
+import PromptOptimizer from "@/components/PromptOptimizer/index.vue";
 import GenerationDialog from "@/components/GenerationDialog/index.vue";
 import useCreationQuote from "@/hooks/useCreationQuote";
 import useTaskActions from "@/hooks/useTaskActions";
@@ -139,9 +167,18 @@ import {
   readCreationDraft,
   saveCreationDraft,
 } from "@/utils/creation-draft";
-import { appendPromptText, polishPromptText } from "@/utils/prompt";
+import {
+  appendPromptText,
+  countPromptCharacters,
+  limitPromptCharacters,
+  normalizePromptInput,
+} from "@/utils/prompt";
 import { getErrorMessage, isApiError } from "@/utils/request";
-import { buildFailureNote, getTaskRetryCost } from "@/utils/task-refund";
+import {
+  buildFailureNote,
+  getTaskRefundPoints,
+  getTaskRetryCost,
+} from "@/utils/task-refund";
 
 const steps = [
   {
@@ -156,7 +193,12 @@ const steps = [
 const selectedStyle = ref("");
 const prompt = ref("");
 const isSavingDraft = ref(false);
+const isOptimizing = ref(false);
+const promptOptimizer = ref(null);
 const promptLimit = 400;
+const promptCharacterCount = computed(() =>
+  countPromptCharacters(prompt.value),
+);
 const suggestions = [
   "江南烟雨",
   "宋代山水",
@@ -164,11 +206,9 @@ const suggestions = [
   "晨曦微光",
   "枯墨留白",
 ];
-const polishSuffix = "画面空灵雅致，留白自然，笔触细腻";
 const randomPromptText =
   "薄雾晨光里的青绿山水，远处层峦叠嶂，近处一叶轻舟掠过溪面";
 const estimatedTime = "约 6~8 秒";
-const DEFAULT_GENERATION_COST = 2;
 const TASK_STAGE_TEXT = {
   [TASK_STATUS.PENDING]: "排队等待",
   [TASK_STATUS.PROCESSING]: "气韵流转",
@@ -181,7 +221,7 @@ const TASK_NOTE_TEXT = {
     "任务已创建，正在排队等待云端处理，离开页面不影响生成。",
   [TASK_STATUS.PROCESSING]: "云端研墨中，离开页面或切换画风不影响生成。",
   [TASK_STATUS.COMPLETED]: "画卷已完成，可轻触画卷放大查看或前往作品库。",
-  [TASK_STATUS.CANCELED]: "创作已取消，本次消耗的积分已退回。",
+  [TASK_STATUS.CANCELED]: "创作已取消。",
 };
 const draft = ref(readCreationDraft(DRAFT_KEYS.image) || {});
 const confirmVisible = ref(false);
@@ -191,20 +231,23 @@ const taskId = ref("");
 const taskProgress = ref(0);
 const taskStatus = ref(TASK_STATUS.PENDING);
 const taskMessage = ref("");
+const statusUnavailable = ref(false);
+const isRefreshingStatus = ref(false);
 const taskResultUrl = ref("");
 const taskRetryCost = ref(0);
 
-const { quote: costQuote } = useCreationQuote({
-  getParams: () => ({
-    task_type: "image",
-    prompt: prompt.value.trim(),
-    style: selectedStyle.value,
-  }),
+const { quote: costQuote, refreshQuote } = useCreationQuote({
+  getParams: () => {
+    prompt.value = normalizePromptInput(prompt.value, promptLimit);
+    return {
+      task_type: "image",
+      prompt: prompt.value.trim(),
+      style: selectedStyle.value,
+    };
+  },
 });
 
-const generationCost = computed(
-  () => costQuote.value?.cost_points ?? DEFAULT_GENERATION_COST,
-);
+const generationCost = computed(() => costQuote.value?.cost_points ?? "—");
 const generationTokens = computed(() => costQuote.value?.total_tokens || 0);
 
 const taskStage = computed(
@@ -212,6 +255,9 @@ const taskStage = computed(
 );
 
 const taskNote = computed(() => {
+  if (taskStatus.value === TASK_STATUS.CANCELED && taskMessage.value) {
+    return taskMessage.value;
+  }
   if (taskStatus.value === TASK_STATUS.FAILED) {
     return taskMessage.value || "生成失败，请返回重新尝试。";
   }
@@ -229,6 +275,8 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
   isFailed: (data) => data.status === TASK_STATUS.FAILED,
   isCanceled: (data) => data.status === TASK_STATUS.CANCELED,
   onProgress: (data) => {
+    statusUnavailable.value = false;
+    isRefreshingStatus.value = false;
     taskStatus.value = data.status || TASK_STATUS.PROCESSING;
     taskProgress.value = Number(data.progress) || 0;
 
@@ -237,52 +285,59 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
     }
   },
   onCompleted: (data) => {
+    isRefreshingStatus.value = false;
     taskStatus.value = TASK_STATUS.COMPLETED;
     taskProgress.value = 100;
     taskResultUrl.value = data.result_urls?.[0] || "";
   },
   onFailed: (error, data) => {
-    const isRequestError = isApiError(error);
-
+    isRefreshingStatus.value = false;
     taskStatus.value = TASK_STATUS.FAILED;
     taskRetryCost.value = getTaskRetryCost(data);
-    taskMessage.value = isRequestError
-      ? "任务状态查询失败，请稍后在作品库确认结果。"
-      : buildFailureNote(
-          data,
-          getErrorMessage(error, "生成失败，请稍后重试。"),
-        );
-
-    if (!isRequestError) {
-      uni.showToast({
-        title: data?.error_message || taskMessage.value,
-        icon: "none",
-      });
-    }
+    taskMessage.value = buildFailureNote(
+      data,
+      getErrorMessage(error, "生成失败，请稍后重试。"),
+    );
+    uni.showToast({
+      title: data?.error_message || taskMessage.value,
+      icon: "none",
+    });
   },
-  onCanceled: () => applyCanceledState(),
+  onUnavailable: () => {
+    isRefreshingStatus.value = false;
+    statusUnavailable.value = true;
+    taskMessage.value = "暂时无法获取任务状态，任务仍可能在处理中。";
+  },
+  onCanceled: (data) => applyCanceledState(data),
 });
 
-// 任务取消后停止轮询，弹窗切换为已取消状态
-const applyCanceledState = () => {
+/**
+ * 展示任务取消结果及本次实际退回的积分。
+ * @param {Object} data 任务状态。
+ * @returns {void}
+ */
+const applyCanceledState = (data) => {
   stopPolling();
+  isRefreshingStatus.value = false;
+  statusUnavailable.value = false;
   taskStatus.value = TASK_STATUS.CANCELED;
   taskResultUrl.value = "";
-  taskMessage.value = "";
+  const refunded = getTaskRefundPoints(data);
+  taskMessage.value =
+    refunded > 0 ? `创作已取消，本次退回 ${refunded} 积分。` : "创作已取消。";
 };
 
-// 在现有主旨后追加润色意象，空主旨时使用默认起笔句式
-const polishPrompt = () => {
-  prompt.value = polishPromptText(
-    prompt.value,
-    polishSuffix,
-    `江南烟雨中的远山与归舟，${polishSuffix}`,
-  );
+// 状态查询恢复后继续查询原任务，不重新创建或扣费
+const refreshTaskStatus = () => {
+  if (isRefreshingStatus.value) return;
+  isRefreshingStatus.value = true;
+  statusUnavailable.value = false;
+  startPolling();
 };
 
 // 用随机意象覆盖当前主旨
 const randomPrompt = () => {
-  prompt.value = randomPromptText;
+  prompt.value = limitPromptCharacters(randomPromptText, promptLimit);
 };
 
 /**
@@ -291,7 +346,10 @@ const randomPrompt = () => {
  * @returns {void}
  */
 const appendPrompt = (value) => {
-  prompt.value = appendPromptText(prompt.value, value);
+  prompt.value = limitPromptCharacters(
+    appendPromptText(prompt.value, value),
+    promptLimit,
+  );
 };
 
 // 返回上一页重新构思；页面栈为空时（如 H5 刷新后直达）回到构思页
@@ -306,7 +364,13 @@ const goBack = () => {
 
 // 校验构思内容后弹出生成确认
 const handleSubmit = () => {
-  if (isSubmitting.value) {
+  prompt.value = normalizePromptInput(prompt.value, promptLimit);
+  if (
+    isSubmitting.value ||
+    isSavingDraft.value ||
+    isOptimizing.value ||
+    !costQuote.value
+  ) {
     return;
   }
 
@@ -327,6 +391,7 @@ const handleSubmit = () => {
 const startTaskPolling = () => {
   taskProgress.value = 0;
   taskStatus.value = TASK_STATUS.PENDING;
+  statusUnavailable.value = false;
   taskMessage.value = "";
   taskResultUrl.value = "";
   taskRetryCost.value = 0;
@@ -336,13 +401,19 @@ const startTaskPolling = () => {
 const { cancelTask, retryTask, isCanceling, isRetrying } = useTaskActions({
   getTaskId: () => taskId.value,
   getRetryCost: () => taskRetryCost.value,
-  onCanceled: () => applyCanceledState(),
+  onCanceled: (data) => applyCanceledState(data),
   onRetried: () => startTaskPolling(),
 });
 
 // 保存当前文字生图参数。
 const saveDraft = async () => {
-  if (isSavingDraft.value || !prompt.value.trim()) {
+  prompt.value = normalizePromptInput(prompt.value, promptLimit);
+  if (
+    isSavingDraft.value ||
+    isSubmitting.value ||
+    confirmVisible.value ||
+    !prompt.value.trim()
+  ) {
     if (!prompt.value.trim())
       uni.showToast({ title: "请填写提示词", icon: "none" });
     return;
@@ -367,7 +438,13 @@ const saveDraft = async () => {
  * @returns {Promise<void>}
  */
 const confirmGenerate = async () => {
-  if (isSubmitting.value) {
+  prompt.value = normalizePromptInput(prompt.value, promptLimit);
+  if (
+    isSubmitting.value ||
+    isSavingDraft.value ||
+    isOptimizing.value ||
+    !costQuote.value
+  ) {
     return;
   }
 
@@ -427,11 +504,17 @@ onShow(() => {
 
   draft.value = currentDraft;
   selectedStyle.value = currentDraft.style;
-  prompt.value = currentDraft.prompt || "";
+  prompt.value = limitPromptCharacters(currentDraft.prompt || "", promptLimit);
 });
 </script>
 
 <style scoped lang="scss">
+.fixed-tip {
+  display: block;
+  margin-top: 12rpx;
+  color: #6f8179;
+  font-size: 24rpx;
+}
 .flow-body {
   @include flow-body(3);
 }

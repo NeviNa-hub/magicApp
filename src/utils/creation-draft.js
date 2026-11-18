@@ -48,7 +48,7 @@ export const clearEditingDraft = () => uni.removeStorageSync("editing_draft");
 export const persistEditingDraft = async (type, data) => {
   const current = getEditingDraft();
   const payload = { task_type: type, title: current?.task_type === type ? current.title : (data.prompt?.trim().slice(0, 30) || "未命名草稿"), input_data: data };
-  const result = current?.task_type === type ? await updateDraft(current.id, payload) : await createDraft(payload);
+  const result = current?.task_type === type ? await updateDraft({ draftId: current.id }, payload) : await createDraft(payload);
   setEditingDraft(result);
   return result;
 };

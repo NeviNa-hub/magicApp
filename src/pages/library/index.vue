@@ -106,6 +106,12 @@
             class="work-card"
             @click="openWork(work)"
           >
+            <private-image
+              v-if="work.coverAssetId"
+              class="work-cover"
+              :asset-id="work.coverAssetId"
+              :mock-url="work.coverUrl"
+            />
             <text class="work-type">{{ work.typeName }}</text>
             <view class="work-info">
               <text class="work-title">{{ work.title }}</text>
@@ -156,6 +162,8 @@
 <script setup>
 import { computed, onUnmounted, ref } from "vue";
 import { onShow, onUnload } from "@dcloudio/uni-app";
+
+import PrivateImage from "@/components/PrivateImage/index.vue";
 // #ifdef H5
 import { Delete, View } from "@element-plus/icons-vue";
 // #endif
@@ -209,6 +217,7 @@ const hasMore = computed(() => works.value.length < pageInfo.value.total);
  * @returns {Promise<void>}
  */
 const loadLibraryData = async (reset = false) => {
+  clearTimeout(searchTimer);
   const token = ++requestToken;
   const page = reset ? 1 : pageInfo.value.page + 1;
 
@@ -246,6 +255,8 @@ const loadLibraryData = async (reset = false) => {
           status: item.status || "",
           taskId: item.task_id || "",
           mediaUrl: item.media_url || "",
+          coverAssetId: item.cover_asset_id || null,
+          coverUrl: item.cover_url || "",
           time: formatDateTime(item.created_at),
         }))
       : [];
@@ -274,6 +285,7 @@ const loadLibraryData = async (reset = false) => {
 
 // 应用桌面端类型或排序筛选。
 const applyFilters = () => {
+  keyword.value = keywordInput.value.trim();
   loadLibraryData(true);
 };
 
@@ -305,6 +317,7 @@ const cleanupSearch = () => {
  */
 const changeType = (event) => {
   typeIndex.value = Number(event.detail.value);
+  keyword.value = keywordInput.value.trim();
   loadLibraryData(true);
 };
 
@@ -315,6 +328,7 @@ const changeType = (event) => {
  */
 const changeSort = (event) => {
   sortIndex.value = Number(event.detail.value);
+  keyword.value = keywordInput.value.trim();
   loadLibraryData(true);
 };
 
@@ -427,6 +441,13 @@ onUnmounted(cleanupSearch);
 </script>
 
 <style scoped lang="scss">
+.work-cover {
+  width: 84rpx;
+  height: 84rpx;
+  margin-right: 16rpx;
+  border-radius: 12rpx;
+  flex-shrink: 0;
+}
 .library-page {
   @include page-shell;
 }

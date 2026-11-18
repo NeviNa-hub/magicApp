@@ -45,22 +45,40 @@ export const deleteLibraryWork = (params = {}) => {
  * @param {Object} data 包含新标题。
  * @returns {Promise<Object>} 更新结果。
  */
-export const updateLibraryWorkTitle = (params = {}, data = {}) =>
-  request({
+export const updateLibraryWorkTitle = (params = {}, data = {}) => {
+  return request({
     url: `/library/works/${encodeURIComponent(params.workId)}`,
     method: "PUT",
     data,
   });
+};
+
+/**
+ * 设置视频作品封面。
+ * @param {Object} params 包含作品标识。
+ * @param {Object} data 包含封面资源标识。
+ * @returns {Promise<Object>} 更新结果。
+ */
+export const updateLibraryWorkCover = (params = {}, data = {}) => {
+  return request({
+    url: `/library/works/${encodeURIComponent(params.workId)}/cover`,
+    method: "PUT",
+    data,
+  });
+};
 
 
 /**
  * 获取本人作品的媒体地址。
  * @param {Object} params 作品标识。
+ * @param {Object} opt 请求选项。
  * @returns {Promise<Object>} 媒体信息。
  */
-export const getLibraryWorkMedia = (params = {}) =>
-  request({
+export const getLibraryWorkMedia = (params = {}, opt = {}) => {
+  return request({
+    ...opt,
     url: `/library/works/${encodeURIComponent(params.workId)}/media`,
     method: "GET",
     params: { ...params },
   });
+};

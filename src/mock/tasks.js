@@ -9,6 +9,26 @@ const TASK_DURATION = 12000;
 const taskStore = new Map();
 let taskSequence = 0;
 
+// 通知复用模拟任务的完成状态和已读标记。
+export const listMockNotifications = () => {
+  return Array.from(taskStore.keys())
+    .map(readMockTask)
+    .filter((task) => task.status === TASK_STATUS.COMPLETED)
+    .reverse();
+};
+
+/**
+ * 标记已完成的模拟任务通知。
+ * @param {string} taskId 任务标识。
+ * @returns {boolean} 通知是否存在。
+ */
+export const readMockNotification = (taskId) => {
+  const task = readMockTask(taskId);
+  if (!task || task.status !== TASK_STATUS.COMPLETED) return false;
+  taskStore.get(taskId).notificationRead = true;
+  return true;
+};
+
 /**
  * 创建一个模拟任务并返回任务记录。
  * @param {string} type 任务类型：image / optimization / video。
@@ -23,6 +43,7 @@ export const createMockTask = (type, payload = {}) => {
     task_type: type,
     prompt: payload.prompt,
     style: payload.style,
+    duration: payload.duration,
   });
   const record = {
     taskId,

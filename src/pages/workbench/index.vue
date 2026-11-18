@@ -33,12 +33,12 @@
           <view class="card-heading">
             <text class="card-title">视频创作</text>
             <text class="card-tag tag-blue">流光·镜</text>
-            <text class="card-ready ready-blue">多镜连贯</text>
+            <text class="card-ready ready-blue">文字生视频</text>
           </view>
-          <text class="card-desc">精准掌控光影轨迹与运镜调度，独立成片。</text>
+          <text class="card-desc">输入画面描述，选择画幅和时长生成视频。</text>
           <view class="film-art">
             <view class="film-title">
-              <text class="film-name">水墨分镜胶卷轨道</text>
+              <text class="film-name">创作过程示意</text>
               <view class="film-marquee">
                 <view class="film-marquee-track">
                   <view
@@ -66,16 +66,15 @@
                 <view class="frame-thumb"></view>
                 <text class="frame-label">{{ frame.name }}</text>
               </view>
-              <text v-if="!frames.length" class="film-empty">分镜待载入</text>
             </view>
           </view>
           <view class="card-footer">
-            <text class="footer-note">四镜连贯 · 独立成片</text>
+            <text class="footer-note">支持调整视频时长</text>
             <button
               class="footer-button button-blue"
               @click="startTool('视频创作')"
             >
-              逐帧调度
+              开始创作
             </button>
           </view>
         </view>
@@ -85,11 +84,11 @@
           <view class="card-heading">
             <text class="card-title">图片优化</text>
             <text class="card-tag tag-purple">净辞·重塑</text>
-            <text class="card-ready ready-purple">无损超分</text>
+            <text class="card-ready ready-purple">图片优化</text>
           </view>
-          <text class="card-desc"
-            >还原本真质感，微米级去噪与旧照色彩修复。</text
-          >
+          <text class="card-desc">
+            还原本真质感，微米级去噪与旧照色彩修复。
+          </text>
           <view class="compare-art">
             <app-image
               class="art-image compare-before"
@@ -106,7 +105,7 @@
             <text class="compare-tag tag-upscaled">纤毫毕现</text>
           </view>
           <view class="card-footer">
-            <text class="footer-note">最大支持五千万像素解析</text>
+            <text class="footer-note">最大支持 2500 万像素图片</text>
             <button
               class="footer-button button-purple"
               @click="startTool('图片优化')"
@@ -116,20 +115,26 @@
           </view>
         </view>
 
-        <!-- 草稿与便签库 -->
+        <!-- 云端草稿列表 -->
         <view class="draft-card">
           <view class="draft-title">
-            <text>草稿与便签库</text>
-            <text class="draft-subtitle">完整归档</text>
+            <text>创作草稿</text>
+            <text class="draft-subtitle">手动保存</text>
           </view>
           <view v-for="draft in drafts" :key="draft.id" class="draft-row">
             <text class="draft-name" @click="openDraft(draft)"
               >{{ draft.title }} · {{ draft.task_type }}</text
             >
-            <button :disabled="isDraftAction" @click="renameDraft(draft)">
+            <button
+              :disabled="isDraftAction || isOpeningDraft"
+              @click="renameDraft(draft)"
+            >
               改名
             </button>
-            <button :disabled="isDraftAction" @click="removeDraft(draft)">
+            <button
+              :disabled="isDraftAction || isOpeningDraft"
+              @click="removeDraft(draft)"
+            >
               删除
             </button>
           </view>
@@ -153,7 +158,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { onUnmounted, ref } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 
 import { getDrafts, getDraft, updateDraft, deleteDraft } from "@/apis/drafts";
@@ -161,8 +166,10 @@ import {
   DRAFT_KEYS,
   saveCreationDraft,
   setEditingDraft,
+  getEditingDraft,
   clearEditingDraft,
 } from "@/utils/creation-draft";
+import { countPromptCharacters } from "@/utils/prompt";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppImage from "@/components/AppImage/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
@@ -179,23 +186,28 @@ const draftTotal = ref(0);
 const draftPage = ref(0);
 const isDraftLoading = ref(false);
 const isDraftAction = ref(false);
+const isOpeningDraft = ref(false);
 const draftError = ref(false);
+let draftRequestVersion = 0;
 
 // 加载草稿列表。
 const loadMoreDrafts = async () => {
   if (isDraftLoading.value) return;
+  const version = draftRequestVersion;
   isDraftLoading.value = true;
   draftError.value = false;
   try {
     const result = await getDrafts({ page: draftPage.value + 1 });
+    if (version !== draftRequestVersion) return;
     drafts.value = drafts.value.concat(result.items);
     draftPage.value = result.page;
     draftTotal.value = result.total;
   } catch {
+    if (version !== draftRequestVersion) return;
     draftError.value = true;
     uni.showToast({ title: "草稿加载失败", icon: "none" });
   } finally {
-    isDraftLoading.value = false;
+    if (version === draftRequestVersion) isDraftLoading.value = false;
   }
 };
 
@@ -204,8 +216,12 @@ const loadMoreDrafts = async () => {
  * @returns {Promise<void>} 无返回值。
  */
 const openDraft = async (item) => {
+  if (isOpeningDraft.value || isDraftAction.value) return;
+  const version = draftRequestVersion;
+  isOpeningDraft.value = true;
   try {
-    const draft = await getDraft(item.id);
+    const draft = await getDraft({ draftId: item.id });
+    if (version !== draftRequestVersion) return;
     setEditingDraft(draft);
     if (draft.task_type === "image")
       saveCreationDraft(DRAFT_KEYS.image, draft.input_data);
@@ -218,7 +234,10 @@ const openDraft = async (item) => {
     };
     uni.navigateTo({ url: paths[draft.task_type] });
   } catch {
-    uni.showToast({ title: "草稿不可用，请刷新", icon: "none" });
+    if (version === draftRequestVersion)
+      uni.showToast({ title: "草稿不可用，请刷新", icon: "none" });
+  } finally {
+    if (version === draftRequestVersion) isOpeningDraft.value = false;
   }
 };
 
@@ -227,31 +246,45 @@ const openDraft = async (item) => {
  * @returns {void}
  */
 const renameDraft = (draft) => {
+  if (isDraftAction.value || isOpeningDraft.value) return;
+  const version = draftRequestVersion;
+  isDraftAction.value = true;
   uni.showModal({
     title: "修改草稿名称",
     editable: true,
     placeholderText: draft.title,
     success: async (result) => {
-      if (!result.confirm) return;
-      const title = result.content.trim();
-      if (!title || title.length > 50) {
-        uni.showToast({ title: "请输入 1 至 50 字标题", icon: "none" });
+      if (!result.confirm) {
+        isDraftAction.value = false;
         return;
       }
-      if (isDraftAction.value) return;
-      isDraftAction.value = true;
+      const title = result.content.trim();
+      if (!title || countPromptCharacters(title) > 50) {
+        uni.showToast({ title: "请输入 1 至 50 字标题", icon: "none" });
+        isDraftAction.value = false;
+        return;
+      }
       try {
-        const updated = await updateDraft(draft.id, {
-          task_type: draft.task_type,
-          title,
-          input_data: draft.input_data,
-        });
+        const updated = await updateDraft(
+          { draftId: draft.id },
+          {
+            task_type: draft.task_type,
+            title,
+            input_data: draft.input_data,
+          },
+        );
+        if (version !== draftRequestVersion) return;
         draft.title = updated.title;
+        if (getEditingDraft()?.id === draft.id) setEditingDraft(updated);
       } catch {
-        uni.showToast({ title: "修改失败", icon: "none" });
+        if (version === draftRequestVersion)
+          uni.showToast({ title: "修改失败", icon: "none" });
       } finally {
         isDraftAction.value = false;
       }
+    },
+    fail: () => {
+      isDraftAction.value = false;
     },
   });
 };
@@ -261,34 +294,57 @@ const renameDraft = (draft) => {
  * @returns {void}
  */
 const removeDraft = (draft) => {
+  if (isDraftAction.value || isOpeningDraft.value) return;
+  const version = draftRequestVersion;
+  isDraftAction.value = true;
   uni.showModal({
     title: "删除草稿",
     content: "确认删除此草稿？",
     success: async (result) => {
-      if (!result.confirm) return;
-      if (isDraftAction.value) return;
-      isDraftAction.value = true;
+      if (!result.confirm) {
+        isDraftAction.value = false;
+        return;
+      }
       try {
-        await deleteDraft(draft.id);
-        drafts.value = drafts.value.filter((item) => item.id !== draft.id);
-        draftTotal.value -= 1;
+        await deleteDraft({ draftId: draft.id });
+        if (version !== draftRequestVersion) return;
+        if (getEditingDraft()?.id === draft.id) clearEditingDraft();
+        // 删除会改变分页边界，重新加载首页以免跳过后续草稿。
+        draftRequestVersion += 1;
+        drafts.value = [];
+        draftPage.value = 0;
+        draftTotal.value = 0;
+        isDraftLoading.value = false;
+        loadMoreDrafts();
       } catch {
-        uni.showToast({ title: "删除失败", icon: "none" });
+        if (version === draftRequestVersion)
+          uni.showToast({ title: "删除失败", icon: "none" });
       } finally {
         isDraftAction.value = false;
       }
+    },
+    fail: () => {
+      isDraftAction.value = false;
     },
   });
 };
 
 onShow(() => {
+  draftRequestVersion += 1;
+  isDraftLoading.value = false;
+  isOpeningDraft.value = false;
   drafts.value = [];
   draftPage.value = 0;
   draftTotal.value = 0;
   loadMoreDrafts();
 });
 
-const filmChips = ["四开画幅", "轨迹平滑", "60FPS 帧率"];
+onUnmounted(() => {
+  draftRequestVersion += 1;
+});
+
+// 装饰文案仅作视觉示意，不代表生成模型的技术参数。
+const filmChips = ["画幅选择", "灵感构思", "视频生成"];
 
 /**
  * 根据工具名称进入对应创作流程或公共待开发页。
