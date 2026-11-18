@@ -165,7 +165,6 @@ const handleMaskTap = () => {
 
 .sheet-footer {
   flex-shrink: 0;
-  display: flex;
   gap: 16rpx;
   padding-top: 24rpx;
 }

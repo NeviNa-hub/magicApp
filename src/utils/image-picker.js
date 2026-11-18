@@ -5,6 +5,15 @@
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_PIXELS = 25000000;
 const IMAGE_TYPES = ["jpeg", "jpg", "png", "webp"];
+const IMAGE_TYPE_ALIASES = { jpe: "jpeg", pjpeg: "jpeg", "image/jpg": "jpg" };
+
+// 兼容平台返回 MIME 类型或大写扩展名的情况。
+const normalizeImageType = (value, path) => {
+  let type = String(value || "").trim().toLowerCase();
+  if (!type) type = String(path || "").split(/[?#]/)[0].split(".").pop().toLowerCase();
+  if (type.startsWith("image/")) type = type.slice("image/".length);
+  return IMAGE_TYPE_ALIASES[type] || type;
+};
 
 /**
  * 读取图片尺寸与格式。
@@ -35,8 +44,8 @@ const readFileSize = (path) => new Promise((resolve, reject) => {
  */
 const prepareImage = async (image) => {
   let info = await readImageInfo(image.path);
-  let type = String(info.type || "").toLowerCase();
-  if (!IMAGE_TYPES.includes(type)) throw new Error("仅支持 JPEG、PNG、WebP 图片");
+  let type = normalizeImageType(info.type, image.name || image.path);
+  if (!IMAGE_TYPES.includes(type)) throw new Error("仅支持 JPG、JPEG、PNG、WebP 图片");
   if (!info.width || !info.height || info.width * info.height > MAX_IMAGE_PIXELS) throw new Error("图片像素不能超过 2500 万");
   let size = Number(image.size);
   if (!Number.isFinite(size) || size <= 0) size = await readFileSize(image.path);
@@ -50,7 +59,7 @@ const prepareImage = async (image) => {
   size = await readFileSize(compressed.tempFilePath);
   if (!Number.isFinite(size) || size <= 0 || size > MAX_IMAGE_BYTES) throw new Error("压缩后图片仍超过 5 MB，请重新选择");
   info = await readImageInfo(compressed.tempFilePath);
-  type = String(info.type || "").toLowerCase();
+  type = normalizeImageType(info.type, compressed.tempFilePath);
   if (!IMAGE_TYPES.includes(type) || !info.width || !info.height || info.width * info.height > MAX_IMAGE_PIXELS) throw new Error("压缩后的图片格式或尺寸不符合要求");
   return { ...image, path: compressed.tempFilePath, size };
 };

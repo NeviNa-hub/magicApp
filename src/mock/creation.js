@@ -105,6 +105,15 @@ const LIBRARY_WORKS = [
     type_name: "图片优化",
     created_at: "2026-11-12 20:18",
   },
+  {
+    work_id: -4,
+    task_id: "mock-editable-draft",
+    title: "待继续创作的草稿",
+    status: "draft",
+    class_name: "draft-work",
+    type_name: "视频创作",
+    created_at: "2026-11-13 09:30",
+  },
 ];
 
 /**
@@ -143,7 +152,7 @@ export const buildLibraryData = (params = {}, isEmpty = false) => {
   const creatingWork = LIBRARY_WORKS.find((item) => item.status === "creating");
 
   return {
-    summary: `共 ${LIBRARY_WORKS.length} 幅典藏 · 1 幅研墨中`,
+    summary: `共 ${LIBRARY_WORKS.length} 幅典藏`,
     page_info: {
       page,
       page_size: pageSize,

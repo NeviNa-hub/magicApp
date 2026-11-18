@@ -15,7 +15,7 @@
         </view>
       </view>
     </scroll-view>
-    <app-bottom-nav active="workshop" />
+    <app-bottom-nav :active="activeNavigation" />
   </view>
 </template>
 
@@ -28,6 +28,7 @@ import AppPageHeader from "@/components/AppPageHeader/index.vue";
 import InspirationCarousel from "@/components/InspirationCarousel/index.vue";
 
 const title = ref("功能");
+const activeNavigation = ref("workshop");
 
 /**
  * 读取待开发功能名称。
@@ -36,6 +37,7 @@ const title = ref("功能");
  */
 onLoad((query) => {
   title.value = query.title ? decodeURIComponent(query.title) : "功能";
+  activeNavigation.value = query.active || "workshop";
   uni.setNavigationBarTitle({ title: `${title.value}建设中` });
 });
 

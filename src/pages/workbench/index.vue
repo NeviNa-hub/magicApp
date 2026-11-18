@@ -369,7 +369,9 @@ const startTool = (name) => {
   }
 
   uni.navigateTo({
-    url: `/pages/under-development/index?title=${encodeURIComponent(name)}`,
+    url: `/pages/under-development/index?title=${encodeURIComponent(
+      name,
+    )}&active=creation`,
   });
 };
 </script>

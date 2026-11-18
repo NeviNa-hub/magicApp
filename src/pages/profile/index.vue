@@ -33,14 +33,14 @@
               </view>
               <text class="account">账号 {{ accountText }}</text>
               <button
-                v-if="profileLoaded"
                 class="edit-profile"
-                @tap="openProfileEditor"
+                @tap="profileLoaded ? openProfileEditor() : loadProfile()"
               >
-                编辑资料
-              </button>
-              <button v-else class="edit-profile" @tap="loadProfile">
-                重新加载资料
+                <text v-if="profileLoaded" class="edit-profile-icon">✎</text>
+                <text v-if="profileLoaded" class="edit-profile-label">
+                  编辑资料
+                </text>
+                <text v-else> 重新加载资料 </text>
               </button>
             </view>
           </view>
@@ -90,6 +90,11 @@
             <!-- #endif -->
           </view>
         </view>
+      </view>
+    </scroll-view>
+
+    <view class="logout-bar">
+      <view class="account-actions">
         <button
           class="delete-account-entry"
           :disabled="isLoggingOut"
@@ -97,19 +102,30 @@
         >
           注销账号
         </button>
+        <button
+          class="logout-button"
+          :disabled="isLoggingOut"
+          @tap="handleLogout"
+        >
+          退出登录
+        </button>
       </view>
-    </scroll-view>
-
-    <view class="logout-bar">
-      <button
-        class="logout-button"
-        :disabled="isLoggingOut"
-        @tap="handleLogout"
-      >
-        退出登录
-      </button>
     </view>
 
+    <app-bottom-sheet
+      v-if="isSettingsVisible"
+      title="设置"
+      placement="center"
+      show-close
+      @close="isSettingsVisible = false"
+    >
+      <view class="settings-content">
+        <text class="settings-description">
+          设置功能还在建设中，可以先去试试我们的创作功能。
+        </text>
+        <inspiration-carousel class="settings-carousel" />
+      </view>
+    </app-bottom-sheet>
     <app-bottom-sheet
       v-if="isProfileEditorVisible"
       title="编辑资料"
@@ -232,6 +248,7 @@ import AppBottomSheet from "@/components/AppBottomSheet/index.vue";
 import AppBottomNav from "@/components/AppBottomNav/index.vue";
 import AppImage from "@/components/AppImage/index.vue";
 import AppPageHeader from "@/components/AppPageHeader/index.vue";
+import InspirationCarousel from "@/components/InspirationCarousel/index.vue";
 import PointsDialog from "@/components/PointsDialog/index.vue";
 import useImageUpload from "@/hooks/useImageUpload";
 import { getToken } from "@/utils/auth";
@@ -272,8 +289,6 @@ const menuItems = [
   {
     key: "setting",
     label: "设置",
-    url: "/pages/under-development/index?title=设置",
-    relaunch: false,
   },
 ];
 // #ifdef H5
@@ -297,6 +312,7 @@ const deletePassword = ref("");
 const deleteError = ref("");
 const profileLoaded = ref(false);
 const isProfileEditorVisible = ref(false);
+const isSettingsVisible = ref(false);
 const isSavingProfile = ref(false);
 const profileName = ref("");
 const profileError = ref("");
@@ -527,12 +543,18 @@ const confirmAccountDeletion = async () => {
 };
 
 /**
- * 打开常用功能页面；主页面与底部导航一致用 reLaunch，次级页保留返回路径。
+ * 打开常用功能或设置弹窗；主页面与底部导航一致用 reLaunch。
  *
- * @param {{url: string, relaunch: boolean}} item 菜单配置。
+ * @param {{key: string, url?: string, relaunch?: boolean}} item 菜单配置。
  * @returns {void}
  */
 const openMenu = (item) => {
+  if (item.key === "setting") {
+    isSettingsVisible.value = true;
+
+    return;
+  }
+
   if (item.relaunch) {
     uni.reLaunch({ url: item.url });
 
@@ -596,10 +618,20 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .delete-account-entry {
-  margin-top: 24rpx;
-  color: #b93a2f;
+  @include tap-area($tap-size);
+  margin: 0;
+  padding: 0;
+  border: 1rpx solid #e5c9c5;
+  border-radius: 20rpx;
+  box-sizing: border-box;
   background: #fff;
-  font-size: 26rpx;
+  color: #b93a2f;
+  font-size: 28rpx;
+  line-height: 1;
+
+  &::after {
+    border: 0;
+  }
 }
 .profile-page {
   @include page-shell;
@@ -619,6 +651,7 @@ onUnmounted(() => {
 }
 
 .identity {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 24rpx;
@@ -654,17 +687,42 @@ onUnmounted(() => {
 }
 
 .edit-profile {
-  margin: 8rpx 0 0;
-  padding: 0;
-  background: transparent;
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64rpx;
+  min-height: 64rpx;
+  margin: 0;
+  padding: 0 16rpx;
+  border: 1rpx solid #ead8bd;
+  border-radius: 999rpx;
+  background: #fffaf2;
   color: #8a6840;
   font-size: 24rpx;
-  text-align: left;
-  line-height: 1.5;
+  line-height: 1;
+  gap: 8rpx;
 }
 
 .edit-profile::after {
   border: 0;
+}
+
+.settings-content {
+  padding-top: 20rpx;
+}
+
+.settings-description {
+  display: block;
+  color: $color-muted;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.settings-carousel {
+  margin-top: 12rpx;
 }
 
 .profile-form {
@@ -692,7 +750,39 @@ onUnmounted(() => {
 
 .profile-form-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 16rpx;
+}
+
+.profile-form-actions button {
+  min-width: 144rpx;
+  margin: 0;
+  padding: 0 24rpx;
+  border: 1rpx solid #e6d9c7;
+  border-radius: 12rpx;
+  background: #fff;
+  color: $color-ink;
+  font-size: 28rpx;
+  line-height: 2.5;
+}
+
+.profile-form-actions button:last-child {
+  border-color: $color-primary;
+  background: $color-primary;
+  color: #fff;
+}
+
+.profile-form-actions button::after {
+  border: 0;
+}
+
+.edit-profile-icon {
+  font-size: 30rpx;
+  line-height: 1;
+}
+
+.edit-profile-label {
+  display: none;
 }
 
 .identity-copy {
@@ -884,6 +974,21 @@ onUnmounted(() => {
     white-space: nowrap;
   }
 
+  .edit-profile {
+    min-width: 0;
+    min-height: 36px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+
+  .edit-profile-label {
+    display: inline;
+  }
+
+  .edit-profile-icon {
+    font-size: 18px;
+  }
+
   .menu-card {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -913,6 +1018,14 @@ onUnmounted(() => {
   left: 0;
   padding: 16rpx 32rpx;
 
+  /* App 端上下排列，整体避开底部导航。 */
+  .account-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12rpx;
+    width: 100%;
+  }
+
   /* 窄屏过渡：750px 居中 */
   @media (min-width: $breakpoint-tablet) and (max-width: 1199px) {
     right: auto;
@@ -929,6 +1042,22 @@ onUnmounted(() => {
     width: auto;
     box-sizing: border-box;
     transform: none;
+
+    .account-actions {
+      flex-direction: row;
+      align-items: center;
+      gap: 16px;
+      max-width: 1024px;
+      margin: 0 auto;
+    }
+
+    .delete-account-entry,
+    .logout-button {
+      flex: 1;
+      width: auto;
+      max-width: none;
+      margin: 0;
+    }
   }
 }
 
@@ -948,8 +1077,7 @@ onUnmounted(() => {
   }
 
   @media (min-width: $breakpoint-desktop) {
-    width: min(100%, 1024px);
-    margin: 0 auto;
+    width: 100%;
   }
 }
 </style>

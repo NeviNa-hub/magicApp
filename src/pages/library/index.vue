@@ -19,7 +19,12 @@
           @input="scheduleSearch"
           @confirm="applySearch"
         />
-        <button class="filter-button" @click="applySearch">搜索</button>
+        <button class="filter-button" title="搜索作品" @click="applySearch">
+          <!-- #ifdef H5 -->
+          <el-icon class="search-button-icon"><Search /></el-icon>
+          <!-- #endif -->
+          <text class="search-button-label">搜索</text>
+        </button>
         <!-- 桌面 H5 使用浏览器下拉框；手机 H5 与 App 使用下方 uni-app picker。 -->
         <!-- #ifdef H5 -->
         <select
@@ -73,14 +78,23 @@
         </picker>
       </view>
       <view class="tabs">
-        <text
+        <view
           v-for="tab in tabs"
           :key="tab.name"
+          class="status-tab"
           :class="{ active: activeStatus === tab.status }"
           @click="handleTabChange(tab.status)"
         >
-          {{ tab.name }}
-        </text>
+          <view class="status-tab-icon">
+            <!-- #ifdef H5 -->
+            <el-icon><component :is="statusIcons[tab.icon]" /></el-icon>
+            <!-- #endif -->
+            <!-- #ifndef H5 -->
+            {{ statusGlyphs[tab.icon] }}
+            <!-- #endif -->
+          </view>
+          <text class="status-tab-label">{{ tab.name }}</text>
+        </view>
       </view>
       <app-state-hint
         v-if="isLoading"
@@ -114,8 +128,25 @@
             />
             <text class="work-type">{{ work.typeName }}</text>
             <view class="work-info">
-              <text class="work-title">{{ work.title }}</text>
+              <view class="work-title-row">
+                <text class="work-title">{{ work.title }}</text>
+              </view>
               <text class="work-time">{{ work.time }}</text>
+            </view>
+            <view class="work-status" :class="`is-${work.status}`">
+              <!-- #ifdef H5 -->
+              <el-icon class="work-status-icon">
+                <component :is="statusIcons[work.status]" />
+              </el-icon>
+              <!-- #endif -->
+              <!-- #ifndef H5 -->
+              <text class="work-status-icon">
+                {{ statusGlyphs[work.status] }}
+              </text>
+              <!-- #endif -->
+              <text class="work-status-label">
+                {{ statusDisplay[work.status] }}
+              </text>
             </view>
             <view class="work-actions">
               <view class="work-enter">
@@ -165,7 +196,16 @@ import { onShow, onUnload } from "@dcloudio/uni-app";
 
 import PrivateImage from "@/components/PrivateImage/index.vue";
 // #ifdef H5
-import { Delete, View } from "@element-plus/icons-vue";
+import {
+  CircleCheck,
+  CircleClose,
+  Clock,
+  Delete,
+  EditPen,
+  Files,
+  Search,
+  View,
+} from "@element-plus/icons-vue";
 // #endif
 
 import { getLibraryData, deleteLibraryWork } from "@/apis/creation";
@@ -194,11 +234,35 @@ const sortIndex = ref(0);
 const activeStatus = ref("all");
 const works = ref([]);
 const tabs = [
-  { status: "all", name: "全部" },
-  { status: "completed", name: "已完成" },
-  { status: "creating", name: "创作中" },
-  { status: "canceled", name: "已取消" },
+  { status: "all", name: "全部", icon: "all" },
+  { status: "completed", name: "已完成", icon: "completed" },
+  { status: "creating", name: "创作中", icon: "creating" },
+  { status: "canceled", name: "已取消", icon: "canceled" },
+  { status: "draft", name: "草稿", icon: "draft" },
 ];
+const statusDisplay = {
+  completed: "已完成",
+  creating: "处理中",
+  canceled: "已取消",
+  draft: "草稿",
+};
+const statusGlyphs = {
+  all: "▦",
+  completed: "✓",
+  creating: "◷",
+  canceled: "×",
+  draft: "✎",
+};
+// H5 使用 Element Plus；原生端沿用轻量字符图标，避免引入不兼容的 UI 组件。
+// #ifdef H5
+const statusIcons = {
+  all: Files,
+  completed: CircleCheck,
+  creating: Clock,
+  canceled: CircleClose,
+  draft: EditPen,
+};
+// #endif
 const librarySummary = computed(() => `共 ${pageInfo.value.total} 幅典藏`);
 const pageInfo = ref({ page: 1, pageSize: PAGE_SIZE, total: 0 });
 const isLoading = ref(true);
@@ -514,7 +578,7 @@ onUnmounted(cleanupSearch);
   margin-top: 24rpx;
 }
 
-.tabs text {
+.tabs .status-tab {
   @include tap-area(64rpx);
   padding: 0 24rpx;
   border-radius: 20rpx;
@@ -526,7 +590,27 @@ onUnmounted(cleanupSearch);
   @include numeric;
 }
 
-.tabs text.active {
+.tabs .status-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+}
+
+.status-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.status-tab-label {
+  display: inline;
+}
+
+.tabs .status-tab.active {
   background: $color-primary;
   color: #fff;
   font-weight: 600;
@@ -596,12 +680,23 @@ onUnmounted(cleanupSearch);
   min-width: 0;
 }
 
+.work-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+}
+
 .work-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
   color: $color-ink;
   font-size: 28rpx;
   font-weight: 600;
   line-height: 1.4;
-  @include text-ellipsis;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .work-time {
@@ -609,6 +704,38 @@ onUnmounted(cleanupSearch);
   font-size: 22rpx;
   line-height: 1.4;
   @include numeric;
+}
+
+.work-status {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 42rpx;
+  height: 42rpx;
+  border-radius: 50%;
+  background: #edf5ef;
+  color: #4e8062;
+  font-size: 24rpx;
+}
+
+.work-status.is-creating {
+  background: #fff4df;
+  color: #b98349;
+}
+
+.work-status.is-canceled {
+  background: #fff0ee;
+  color: #b93a2f;
+}
+
+.work-status.is-draft {
+  background: #f2effa;
+  color: #7660a7;
+}
+
+.work-status-label {
+  display: none;
 }
 
 /* 移动端只显示图标并竖向排布，桌面端改为图标加文字的横向胶囊 */
@@ -682,10 +809,69 @@ onUnmounted(cleanupSearch);
     }
   }
 
+  .search-input {
+    display: block;
+    flex: 0 0 240px;
+    width: 240px;
+    min-width: 0;
+    height: 44px;
+    padding: 0 14px;
+    border: 1px solid rgba(184, 134, 78, 0.18);
+    border-radius: 10px;
+    background: #fff;
+    box-sizing: border-box;
+  }
+
+  .filter-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid rgba(184, 134, 78, 0.18);
+    border-radius: 10px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .filter-button:hover {
+    background: #f1e2cd;
+  }
+
+  .search-button-label {
+    display: none;
+  }
+
+  .search-button-icon {
+    display: inline-flex;
+  }
+
   .mobile-filter {
     display: none;
   }
   /* #endif */
+
+  .tabs .status-tab-label,
+  .work-status-label {
+    display: inline;
+  }
+
+  .work-status {
+    width: auto;
+    height: auto;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+  }
+
+  .work-status-icon {
+    font-size: 14px;
+    font-weight: 700;
+  }
 
   .work-list {
     display: grid;
