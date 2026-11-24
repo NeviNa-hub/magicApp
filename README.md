@@ -102,8 +102,10 @@ src/
 
 
 ### 我的
-<img width="375" height="812" alt="image" src="https://github.com/user-attachments/assets/b234b431-1489-43cb-874f-c0ecb53303cc" />
-<img width="452" height="1013" alt="image" src="https://github.com/user-attachments/assets/2bd2cb4d-60c7-4c08-8375-332d7519efc8" />
+<img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/5aec0145-aa6b-4ebc-8aa3-8fdef6233d20" />
+<img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/3eac76b8-0ee7-443e-bc8e-47a171df8736" />
+<img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/764f41c4-026a-4101-9fa1-f28cfb80b198" />
+<img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/0e94086d-f583-4c4e-9e50-fea8596fe124" />
 
 
 
