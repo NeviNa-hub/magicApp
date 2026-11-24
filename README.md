@@ -116,8 +116,8 @@ src/
 
 
 ## PC端 实现效果预览。
-<img width="1920" height="911" alt="image" src="https://github.com/user-attachments/assets/3254bf13-01ca-4044-a4b2-9d4a2a373a48" />
-
-<img width="1920" height="911" alt="image" src="https://github.com/user-attachments/assets/077dce46-1d4b-4c8c-8f7a-d1227387bb8e" />
-
-<img width="1920" height="911" alt="image" src="https://github.com/user-attachments/assets/e131203c-9779-4936-b2f8-c794b05cda05" />
+<img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/d2b0e214-cbdc-4be6-a27d-f9523d2b7d5d" />
+<img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/6108e8fd-87bb-42d4-871d-8d52e719a522" />
+<img width="2229" height="1214" alt="image" src="https://github.com/user-attachments/assets/35d49018-01a0-4773-b91b-85c1e8629710" />
+<img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/78c8d1b3-6458-44f8-9139-2abbbe46317d" />
+<img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/91e1e7c3-3bdc-4540-b9de-815b64a79f0d" />
