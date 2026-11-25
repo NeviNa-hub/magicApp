@@ -99,7 +99,10 @@ src/
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/58266e43-5433-46e8-b525-1f9d598188ca" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/8cdaf510-1ac0-47ab-94f1-05e0e74bc261" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/8ce272da-d62f-42f0-b0f4-49eef0fccabc" />
+<img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/d142d979-9015-4c4a-8999-054502d7e0af" />
 
+### 作品详情
+<img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/242ef8a3-d7ab-49ea-8087-61e157e46cd8" />
 
 
 ### 我的
@@ -107,12 +110,14 @@ src/
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/3eac76b8-0ee7-443e-bc8e-47a171df8736" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/764f41c4-026a-4101-9fa1-f28cfb80b198" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/0e94086d-f583-4c4e-9e50-fea8596fe124" />
+<img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/a531950f-7dbc-45aa-b3cb-a25d7fd52ccf" />
 
 
 
 
 ### 工作坊
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/9a9833f9-48f3-4be8-a9f0-3a776b61645e" />
+<img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/7afe23e0-ded9-4bc9-8a63-bbd0699772e6" />
 
 
 
