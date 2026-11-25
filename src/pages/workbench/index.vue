@@ -163,8 +163,7 @@ import { onShow } from "@dcloudio/uni-app";
 
 import { getDrafts, getDraft, updateDraft, deleteDraft } from "@/apis/drafts";
 import {
-  DRAFT_KEYS,
-  saveCreationDraft,
+  openDraftEditor,
   setEditingDraft,
   getEditingDraft,
   clearEditingDraft,
@@ -222,17 +221,7 @@ const openDraft = async (item) => {
   try {
     const draft = await getDraft({ draftId: item.id });
     if (version !== draftRequestVersion) return;
-    setEditingDraft(draft);
-    if (draft.task_type === "image")
-      saveCreationDraft(DRAFT_KEYS.image, draft.input_data);
-    if (draft.task_type === "video")
-      saveCreationDraft(DRAFT_KEYS.video, draft.input_data);
-    const paths = {
-      image: "/pages/image-style/index",
-      video: "/pages/video-creation/index",
-      optimization: "/pages/image-optimization/index",
-    };
-    uni.navigateTo({ url: paths[draft.task_type] });
+    await openDraftEditor(draft);
   } catch {
     if (version === draftRequestVersion)
       uni.showToast({ title: "草稿不可用，请刷新", icon: "none" });

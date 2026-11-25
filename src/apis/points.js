@@ -1,7 +1,7 @@
 import request from "@/apis/http";
 
 /**
- * 获取灵感点余额与流水。
+ * 获取积分余额与流水。
  * @param {Object} params 分页查询参数。
  * @param {Object} opt 请求选项。
  * @returns {Promise<Object>} 积分余额与流水数据。

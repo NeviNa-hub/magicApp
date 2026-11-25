@@ -55,7 +55,7 @@
 </template>
 
 <script setup>
-import { onLoad } from "@dcloudio/uni-app";
+import { onLoad, onShow } from "@dcloudio/uni-app";
 import { computed, ref } from "vue";
 
 // #ifdef H5
@@ -107,9 +107,16 @@ const selectedStyleId = ref(1);
 const selectedRatio = ref("1:1");
 let templatePrompt = "";
 
-// 模板预填画风和画幅，仍允许在本页调整。
+let shouldRestoreForm = false;
+
+// 从模板、草稿或第二步返回时恢复最近一次填写的参数。
 onLoad((query) => {
-  if (query?.template !== "1") return;
+  shouldRestoreForm = query?.template === "1" || query?.resume === "1";
+});
+
+onShow(() => {
+  if (!shouldRestoreForm) return;
+  shouldRestoreForm = false;
   const template = readCreationDraft(DRAFT_KEYS.image) || {};
   selectedStyleId.value =
     styleOptions.find((item) => item.name === template.style)?.styleId || 1;
@@ -138,6 +145,7 @@ const goNext = () => {
     ratio: selectedRatio.value,
     prompt: templatePrompt,
   });
+  shouldRestoreForm = true;
   uni.navigateTo({ url: "/pages/image-style/index" });
 };
 </script>

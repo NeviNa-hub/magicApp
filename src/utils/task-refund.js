@@ -31,7 +31,10 @@ export const getTaskRetryCost = (data) => {
  * @returns {string} 展示给用户的失败提示。
  */
 export const buildFailureNote = (data, fallback) => {
-  const message = data?.error_message || fallback;
+  const reason = data?.error_message || fallback;
+  const message = /\b402\s*[:\s-]*payment required\b|\bhttp(?: error)?\s+402\b/i.test(reason)
+    ? "创作服务暂不可用，请联系管理员检查服务额度。"
+    : reason;
 
   if (!data) {
     return message;

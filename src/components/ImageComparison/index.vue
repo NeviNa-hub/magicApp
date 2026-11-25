@@ -1,57 +1,45 @@
 <template>
   <view class="comparison">
-    <view
-      v-if="originalSource"
-      class="comparison-frame"
-      :style="{ '--split': `${position}%` }"
-    >
+    <view class="comparison-tabs">
+      <button :class="{ 'is-active': showOriginal }" @tap="showOriginal = true">
+        原图
+      </button>
+      <button :class="{ 'is-active': !showOriginal }" @tap="showOriginal = false">
+        优化后
+      </button>
+    </view>
+    <view class="comparison-preview">
       <image
-        :key="`result-${imageVersion}`"
-        class="comparison-image"
-        :src="resultUrl"
-        mode="aspectFit"
-        @error="handleImageError"
-      />
-      <image
+        v-if="showOriginal && originalSource"
         :key="`original-${imageVersion}`"
-        class="comparison-image comparison-original"
+        class="comparison-image"
         :src="originalSource"
         mode="aspectFit"
         @error="handleOriginalError"
       />
-      <text class="comparison-label is-original">原图</text>
-      <text class="comparison-label is-result">优化后</text>
-      <view class="comparison-divider"></view>
+      <text v-else-if="showOriginal" class="comparison-hint">
+        {{ loading ? "正在加载原图…" : "原图暂不可用" }}
+      </text>
+      <image
+        v-else-if="!imageError"
+        :key="`result-${imageVersion}`"
+        class="comparison-image"
+        :src="resultUrl"
+        mode="aspectFit"
+        @load="imageError = false"
+        @error="handleImageError"
+      />
+      <text v-if="!showOriginal && imageError" class="comparison-hint">
+        图片加载失败，请检查网络或稍后重试
+      </text>
+      <button
+        v-if="showOriginal ? originalFailed && !loading : imageError"
+        class="fallback-retry"
+        @tap.stop="retryImages"
+      >
+        重新加载
+      </button>
     </view>
-    <text v-else class="comparison-hint">
-      {{ loading ? "正在加载原图…" : "原图暂不可用，仍可查看优化结果" }}
-    </text>
-    <image
-      v-if="!originalSource"
-      :key="imageVersion"
-      class="comparison-fallback"
-      :src="resultUrl"
-      mode="aspectFit"
-      @error="handleImageError"
-    />
-    <slider
-      v-if="originalSource"
-      :value="position"
-      :min="0"
-      :max="100"
-      active-color="#b8864e"
-      @changing="changePosition"
-      @change="changePosition"
-    />
-    <text v-if="imageError" class="comparison-hint">
-      图片加载失败，请检查网络或稍后重试
-    </text>
-    <button
-      v-if="imageError || (originalFailed && !loading)"
-      @tap.stop="retryImages"
-    >
-      重新加载图片
-    </button>
   </view>
 </template>
 
@@ -73,7 +61,7 @@ const props = defineProps({
   resultUrl: { type: String, default: "" },
 });
 
-const position = ref(50);
+const showOriginal = ref(false);
 const downloadedUrl = ref("");
 const loading = ref(false);
 const imageError = ref(false);
@@ -85,29 +73,14 @@ const originalSource = computed(() =>
 let downloadTask = null;
 let generation = 0;
 
-/**
- * 同步滑块位置。
- * @param {Object} event 滑块事件。
- * @returns {void}
- */
-const changePosition = (event) => {
-  position.value = Number(event.detail.value);
-};
-
 // 记录图片加载失败状态。
 const handleImageError = () => {
   imageError.value = true;
 };
 
-// 原图失效时回退为结果图。
+// 记录原图加载失败状态。
 const handleOriginalError = () => {
   originalFailed.value = true;
-};
-
-// 重试当前图片地址；上游地址过期时仍可能无法恢复。
-const retryImages = () => {
-  imageVersion.value += 1;
-  loadOriginal(props.originalId);
 };
 
 // 取消旧的原图下载，防止旧结果覆盖当前作品。
@@ -158,6 +131,13 @@ const loadOriginal = (id) => {
   });
 };
 
+// 重新加载当前选中的图片。
+const retryImages = () => {
+  imageVersion.value += 1;
+  if (showOriginal.value) loadOriginal(props.originalId);
+  else imageError.value = false;
+};
+
 watch(
   () => [props.originalId, props.originalUrl],
   ([id]) => loadOriginal(id),
@@ -178,87 +158,57 @@ onUnmounted(cancelDownload);
   width: 100%;
 }
 
-.comparison-frame {
-  position: relative;
-  width: 100%;
+.comparison-tabs {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+
+  button {
+    flex: 1;
+    margin: 0;
+    border-radius: 12rpx;
+    background: #f8f4ef;
+    color: #745530;
+    font-size: 26rpx;
+
+    &.is-active {
+      background: #89663e;
+      color: #fff;
+    }
+  }
+}
+
+.comparison-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
   height: 440rpx;
   overflow: hidden;
   border-radius: 20rpx;
   background: #f8faf7;
-}
 
-.comparison-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
+  .comparison-image {
+    width: 100%;
+    height: 100%;
+  }
 
-.comparison-original {
-  clip-path: inset(0 0 calc(100% - var(--split)) 0);
-}
+  .comparison-hint {
+    padding: 0 24rpx;
+    color: #8a6840;
+    font-size: 24rpx;
+    text-align: center;
+  }
 
-.comparison-divider {
-  position: absolute;
-  top: var(--split);
-  right: 0;
-  left: 0;
-  height: 2px;
-  background: #fff;
-  box-shadow: 0 0 4px #555;
-  pointer-events: none;
-}
-
-.comparison-label {
-  position: absolute;
-  right: 12rpx;
-  padding: 4rpx 12rpx;
-  border-radius: 8rpx;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  font-size: 22rpx;
-}
-
-.is-original {
-  top: 12rpx;
-}
-
-.is-result {
-  bottom: 12rpx;
-}
-
-.comparison-hint {
-  display: block;
-  margin: 12rpx 0;
-  color: #8a6840;
-  font-size: 24rpx;
-}
-
-.comparison-fallback {
-  width: 100%;
-  height: 440rpx;
+  .fallback-retry {
+    @include image-retry-button;
+  }
 }
 
 @media (min-width: $breakpoint-desktop) {
-  .comparison-frame {
-    height: 380px;
-  }
-
-  .comparison-original {
-    clip-path: inset(0 calc(100% - var(--split)) 0 0);
-  }
-
-  .comparison-divider {
-    top: 0;
-    bottom: 0;
-    left: var(--split);
-    width: 2px;
-    height: auto;
-  }
-
-  .is-original {
-    right: auto;
-    left: 12rpx;
+  .comparison-preview {
+    height: var(--detail-preview-height, 380px);
   }
 }
 </style>

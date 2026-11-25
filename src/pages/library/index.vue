@@ -432,7 +432,7 @@ const WORK_TYPE_KEYS = {
  * @returns {string} 详情页地址。
  */
 const buildWorkDetailUrl = (work) =>
-  `/pages/work-detail/index?type=${WORK_TYPE_KEYS[work.typeName]}&taskId=${encodeURIComponent(
+  `/pages/work-detail/index?type=${WORK_TYPE_KEYS[work.typeName]}&status=${encodeURIComponent(work.status)}&taskId=${encodeURIComponent(
     work.taskId,
   )}&title=${encodeURIComponent(work.title)}&workId=${work.status === "completed" ? encodeURIComponent(work.workId) : ""}`;
 
@@ -442,7 +442,10 @@ const buildWorkDetailUrl = (work) =>
  * @returns {void}
  */
 const openWork = (work) => {
-  if (work.taskId && WORK_TYPE_KEYS[work.typeName]) {
+  if (
+    (work.status === "draft" || work.taskId) &&
+    WORK_TYPE_KEYS[work.typeName]
+  ) {
     uni.navigateTo({ url: buildWorkDetailUrl(work) });
     return;
   }

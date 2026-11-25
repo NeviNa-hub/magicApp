@@ -32,7 +32,7 @@ const ERROR_MESSAGES = {
   [ERROR_CODES.UNAUTHORIZED]: "未登录或会话已过期",
   [ERROR_CODES.NOT_FOUND]: "资源不存在",
   [ERROR_CODES.TASK_NOT_FOUND]: "任务不存在或已过期",
-  [ERROR_CODES.INSUFFICIENT_POINTS]: "灵感点不足，请先充值",
+  [ERROR_CODES.INSUFFICIENT_POINTS]: "积分不足，请先充值",
   [ERROR_CODES.INVALID_PARAMS]: "参数校验失败",
   [ERROR_CODES.SERVER_ERROR]: "模拟服务异常，请稍后重试",
 };

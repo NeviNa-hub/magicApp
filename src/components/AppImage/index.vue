@@ -75,23 +75,13 @@ const retryImage = () => {
   flex-direction: column;
   width: 100%;
   height: 100%;
+  gap: 8rpx;
   background: #f7edde;
   color: #8a6840;
 }
 
 .fallback-retry {
-  margin: 8rpx 0 0;
-  padding: 4rpx 12rpx;
-  border: 1rpx solid currentColor;
-  border-radius: 8rpx;
-  background: transparent;
-  color: inherit;
-  font-size: 20rpx;
-  line-height: 1.5;
-
-  &::after {
-    border: 0;
-  }
+  @include image-retry-button;
 }
 
 .fallback-mark {

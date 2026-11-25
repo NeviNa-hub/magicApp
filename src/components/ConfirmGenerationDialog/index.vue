@@ -9,8 +9,8 @@
         <!-- #ifndef H5 -->
         <text class="meta-icon meta-icon-text">耗</text>
         <!-- #endif -->
-        <text>本次消耗灵感点</text>
-        <text class="meta-value">-{{ cost }} 点</text>
+        <text>本次消耗积分</text>
+        <text class="meta-value">-{{ cost }} 积分</text>
       </view>
       <view v-if="tokens > 0" class="meta-row">
         <!-- #ifdef H5 -->
@@ -67,7 +67,7 @@ import { ArrowRight, Coin, Lightning, Timer } from "@element-plus/icons-vue";
 defineProps({
   /** 弹窗标题。 */
   title: { type: String, default: "确认研墨成画" },
-  /** 本次消耗的灵感点。 */
+  /** 本次消耗的积分。 */
   cost: { type: [String, Number], default: 4 },
   /** 本次任务的预计 token 消耗，为 0 时不展示。 */
   tokens: { type: Number, default: 0 },

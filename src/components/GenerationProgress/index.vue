@@ -26,7 +26,7 @@
               </text>
             </view>
             <text class="progress-cost">
-              {{ data.cost === null ? "—" : data.cost }} 灵感点
+              {{ data.cost === null ? "—" : data.cost }} 积分
             </text>
           </view>
           <text v-if="data.workTitle" class="progress-work">

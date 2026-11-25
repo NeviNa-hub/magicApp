@@ -108,7 +108,14 @@ const resolveTaskAction = (taskId, action) => {
   return ok(buildMockTaskResult(retryMockTask(taskId)));
 };
 
-const draftStore = new Map();
+const sampleDraft = {
+  id: "mock-editable-draft",
+  task_type: "video",
+  title: "待继续创作的草稿",
+  input_data: { mode: "text", ratio: "16:9", prompt: "远山在晨雾中徐徐隐退" },
+  updated_at: "2026-11-13T09:30:00",
+};
+const draftStore = new Map([[sampleDraft.id, sampleDraft]]);
 const mockUploadedImages = new Map();
 let draftSequence = 0;
 

@@ -52,7 +52,7 @@
               <!-- #endif -->
             </view>
             <view class="points-copy">
-              <text class="points-label">灵感点</text>
+              <text class="points-label">积分</text>
               <text class="points-value">{{ pointsText }}</text>
             </view>
             <view class="points-action">
@@ -145,24 +145,32 @@
         <text v-if="profileError" class="profile-error">{{
           profileError
         }}</text>
-        <button :disabled="isSavingProfile || isUploading" @tap="chooseImage">
-          {{ isUploading ? "头像上传中" : "选择头像" }}
-        </button>
-        <text v-if="isUploading">
-          {{
+        <text>头像</text>
+        <view class="avatar-editor">
+          <app-image
+            v-if="editAvatarUrl"
+            class="avatar-preview"
+            :src="editAvatarUrl"
+            mode="aspectFill"
+          />
+          <button :disabled="isSavingProfile || isUploading" @tap="chooseImage">
+            {{ editAvatarUrl ? "更换头像" : "选择头像" }}
+          </button>
+        </view>
+        <view v-if="isUploading && !isChoosing" class="avatar-upload-actions">
+          <text>{{
             uploadProgress === null
-              ? "正在准备图片…"
+              ? "正在上传头像…"
               : `上传中 ${uploadProgress}%`
-          }}
-        </text>
-        <button v-if="isUploading" @tap="cancelUpload">取消上传</button>
-        <button v-else-if="canRetryUpload" @tap="retryUpload">重试上传</button>
-        <app-image
-          v-if="editAvatarUrl"
-          class="avatar-preview"
-          :src="editAvatarUrl"
-          mode="aspectFill"
-        />
+          }}</text>
+          <button @tap="cancelUpload">取消上传</button>
+        </view>
+        <view
+          v-else-if="canRetryUpload && !isChoosing"
+          class="avatar-upload-actions"
+        >
+          <button @tap="retryUpload">重试上传</button>
+        </view>
       </view>
       <template #footer>
         <view class="profile-form-actions">
@@ -326,6 +334,7 @@ let avatarGeneration = 0;
 let profileGeneration = 0;
 
 const {
+  isChoosing,
   isUploading,
   uploadProgress,
   canRetryUpload,
@@ -467,7 +476,7 @@ const saveProfile = async () => {
   }
 };
 
-// 打开灵感点流水弹窗，数据由弹窗组件加载。
+// 打开积分流水弹窗，数据由弹窗组件加载。
 const openPointsDialog = () => {
   isPointsDialogVisible.value = true;
 };
@@ -742,6 +751,27 @@ onUnmounted(() => {
   font-size: 24rpx;
 }
 
+.avatar-editor {
+  flex-direction: column;
+}
+
+.avatar-editor,
+.avatar-upload-actions {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+
+  button {
+    margin: 0;
+    padding: 6rpx 20rpx;
+    border-radius: 10rpx;
+    background: #f7edde;
+    color: #805e36;
+    font-size: 24rpx;
+    line-height: 1.6;
+  }
+}
+
 .avatar-preview {
   width: 96rpx;
   height: 96rpx;
@@ -945,9 +975,7 @@ onUnmounted(() => {
   font-size: 26rpx;
 }
 
-/* ============================================================
- * 桌面 H5 适配：1200px 以上用户卡与功能菜单左右分栏，菜单双列
- * ============================================================ */
+/* 桌面端上方展示资料与积分，下方展示常用功能。 */
 @media (min-width: $breakpoint-desktop) {
   .content {
     height: calc(100vh - 50px - 100px);
@@ -956,8 +984,7 @@ onUnmounted(() => {
 
   .profile-layout {
     display: grid;
-    grid-template-columns: minmax(300px, 400px) minmax(0, 600px);
-    justify-content: center;
+    grid-template-columns: minmax(0, 1fr);
     gap: 24px;
     align-items: start;
   }
@@ -966,6 +993,21 @@ onUnmounted(() => {
   .menu-card {
     box-sizing: border-box;
     padding: 24px;
+  }
+
+  .profile-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 32px;
+  }
+
+  .identity-copy {
+    padding-right: 120px;
+  }
+
+  .points-entry {
+    margin-top: 0;
   }
 
   .identity-tag,

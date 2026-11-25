@@ -38,12 +38,6 @@
       }
     },
     {
-      "path": "pages/image-generation/index",
-      "style": {
-        "navigationBarTitleText": "画卷生成中"
-      }
-    },
-    {
       "path": "pages/image-optimization/index",
       "style": {
         "navigationBarTitleText": "图片优化"

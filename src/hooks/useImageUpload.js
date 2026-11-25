@@ -12,6 +12,7 @@ import { showMediaPermissionHelp } from "@/utils/media-permission";
  * @returns {Object} 上传状态和操作方法。
  */
 const useImageUpload = (onUploaded) => {
+  const isChoosing = ref(false);
   const isUploading = ref(false);
   const uploadProgress = ref(null);
   const canRetryUpload = ref(false);
@@ -22,6 +23,7 @@ const useImageUpload = (onUploaded) => {
   // 取消上传并使旧响应失效。
   const cancelUpload = () => {
     generation += 1;
+    isChoosing.value = false;
     controller?.abort();
     controller = null;
     isUploading.value = false;
@@ -73,11 +75,13 @@ const useImageUpload = (onUploaded) => {
   // 选择并校验图片后开始上传。
   const chooseImage = async () => {
     if (isUploading.value) return;
+    isChoosing.value = true;
     isUploading.value = true;
     const current = ++generation;
     try {
       const image = await chooseSingleImage();
       if (current !== generation) return;
+      isChoosing.value = false;
       pendingImage = image;
       isUploading.value = false;
       await retryUpload();
@@ -88,12 +92,15 @@ const useImageUpload = (onUploaded) => {
         }
       }
     } finally {
-      if (current === generation) isUploading.value = false;
+      if (current === generation) {
+        isChoosing.value = false;
+        isUploading.value = false;
+      }
     }
   };
 
   onUnmounted(cancelUpload);
-  return { isUploading, uploadProgress, canRetryUpload, chooseImage, retryUpload, cancelUpload, resetUpload };
+  return { isChoosing, isUploading, uploadProgress, canRetryUpload, chooseImage, retryUpload, cancelUpload, resetUpload };
 };
 
 export default useImageUpload;

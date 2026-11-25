@@ -42,7 +42,7 @@
               </view>
             </view>
             <view class="cost-card">
-              当前剩余灵感点 <b>{{ pointsText }}</b>
+              当前剩余积分 <b>{{ pointsText }}</b>
               <text>
                 本次需量扣除 <b>{{ selectedCost }} 点</b>
               </text>
@@ -154,10 +154,10 @@ const generate = async () => {
     }
 
     saveCreationDraft(DRAFT_KEYS.image, requestData);
-    // 创建任务已扣减灵感点，刷新共享缓存供页头与各页展示。
+    // 创建任务已扣减积分，刷新共享缓存供页头与各页展示。
     loadPointsBalance({ force: true });
     uni.navigateTo({
-      url: `/pages/image-generation/index?mode=creation&taskId=${encodeURIComponent(
+      url: `/pages/work-detail/index?from=creation&type=image&taskId=${encodeURIComponent(
         task.task_id,
       )}`,
     });

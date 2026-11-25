@@ -33,6 +33,34 @@ export const saveCreationDraft = (key, data) => {
  */
 export const setEditingDraft = (draft) => uni.setStorageSync("editing_draft", draft);
 
+/**
+ * 恢复草稿参数并打开对应创作表单。
+ * @param {Object} draft 服务端返回的草稿详情。
+ * @param {Object} [options] 导航选项。
+ * @param {boolean} [options.replaceCurrent] 从草稿详情进入时替换当前页。
+ * @returns {Promise<void>} 页面跳转完成。
+ */
+export const openDraftEditor = async (draft, { replaceCurrent = false } = {}) => {
+  const paths = {
+    image: "/pages/image-style/index",
+    optimization: "/pages/image-optimization/index",
+    video: "/pages/video-creation/index",
+  };
+  if (!draft?.id || !Object.hasOwn(paths, draft.task_type) || !draft.input_data) {
+    throw new Error("草稿内容不可用");
+  }
+
+  setEditingDraft(draft);
+  const key = DRAFT_KEYS[draft.task_type];
+  if (key) saveCreationDraft(key, draft.input_data);
+  const url = paths[draft.task_type];
+  if (replaceCurrent) {
+    await uni.redirectTo({ url });
+  } else {
+    await uni.navigateTo({ url });
+  }
+};
+
 // 读取当前编辑草稿。
 export const getEditingDraft = () => uni.getStorageSync("editing_draft") || null;
 

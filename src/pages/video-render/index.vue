@@ -55,14 +55,14 @@
             <text class="resource-label">本次消耗</text>
             <view class="resource-value">
               {{ renderCost }}
-              <text class="resource-unit">灵感点</text>
+              <text class="resource-unit">积分</text>
             </view>
           </view>
           <view class="resource-item">
             <text class="resource-label">当前可用</text>
             <view class="resource-value">
               {{ pointsState.balance ?? "—" }}
-              <text class="resource-unit">点</text>
+              <text class="resource-unit">积分</text>
             </view>
           </view>
           <view class="resource-item">
@@ -276,7 +276,7 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
     taskStatus.value = TASK_STATUS.FAILED;
     taskRetryCost.value = getTaskRetryCost(data);
     taskStatusData.value = { stageLabel: "生成失败", note };
-    uni.showToast({ title: data?.error_message || note, icon: "none" });
+    uni.showToast({ title: note, icon: "none" });
   },
   onUnavailable: () => {
     isRefreshingStatus.value = false;
@@ -400,7 +400,7 @@ const confirmRender = async () => {
     clearEditingDraft();
     confirmVisible.value = false;
     progressVisible.value = true;
-    // 创建任务已扣减灵感点，刷新共享缓存供页头展示。
+    // 创建任务已扣减积分，刷新共享缓存供页头展示。
     loadPointsBalance({ force: true });
     taskId.value = task.task_id;
     taskProgress.value = 0;

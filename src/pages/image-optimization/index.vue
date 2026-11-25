@@ -315,7 +315,7 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
       getErrorMessage(error, "任务进度获取失败，请稍后重试"),
     );
     uni.showToast({
-      title: data?.error_message || taskNote.value,
+      title: taskNote.value,
       icon: "none",
     });
   },
@@ -463,7 +463,7 @@ const startOptimization = async () => {
     taskResultUrl.value = "";
     taskNote.value = progressNote;
     isProgressVisible.value = true;
-    // 创建任务已扣减灵感点，刷新共享缓存供页头展示。
+    // 创建任务已扣减积分，刷新共享缓存供页头展示。
     loadPointsBalance({ force: true });
     startPolling();
   } catch (error) {

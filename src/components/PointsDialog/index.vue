@@ -67,7 +67,7 @@
       class="points-state"
       type="empty"
       title="暂无积分流水"
-      description="完成创作或消耗灵感点后会记录在这里"
+      description="完成创作或消耗积分后会记录在这里"
     />
   </app-bottom-sheet>
 </template>
@@ -128,7 +128,7 @@ const usedPointsText = computed(() =>
 );
 
 /**
- * 加载灵感点流水，并回填共享的余额缓存。
+ * 加载积分流水，并回填共享的余额缓存。
  * @returns {Promise<void>}
  */
 const loadPointsInfo = async () => {

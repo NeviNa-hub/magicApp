@@ -90,7 +90,7 @@
  * @property {number} countId 张数标识。
  * @property {string} name 张数名称。
  * @property {number} value 图片张数。
- * @property {number} cost 消耗灵感点。
+ * @property {number} cost 消耗积分。
  *
  * @typedef {Object} ImageCanvasOptions
  * @property {ImageRatioOption[]} ratios 画幅比例。
@@ -115,7 +115,7 @@
  * @property {string} workName 作品名称。
  * @property {string} detail 作品详情。
  * @property {string[]} tags 作品标签。
- * @property {number} cost 消耗灵感点。
+ * @property {number} cost 消耗积分。
  * @property {string} estimatedTime 预计耗时。
  * @property {string} description 任务说明。
  * @property {string} tip 云端提示。
@@ -133,7 +133,7 @@
  * @property {string[]} intensities 重绘强度。
  * @property {string} defaultDirection 默认方向名称。
  * @property {string} defaultIntensity 默认强度名称。
- * @property {number} cost 消耗灵感点。
+ * @property {number} cost 消耗积分。
  * @property {string} estimatedTime 预计耗时。
  *
  * @typedef {Object} VideoRatio
@@ -169,7 +169,7 @@
  * @typedef {Object} VideoRenderOptions
  * @property {VideoFpsOption[]} fpsOptions 帧率列表。
  * @property {number} defaultFps 默认帧率。
- * @property {number} cost 消耗灵感点。
+ * @property {number} cost 消耗积分。
  * @property {string} estimatedTime 预计耗时。
  * @property {string} previewTitle 预览标题。
  * @property {string} cameraMove 运镜描述。
@@ -180,7 +180,7 @@
  * @property {string} name 文件名。
  *
  * @typedef {Object} AccountOverview
- * @property {number|null} pointsBalance 灵感点余额，无数据时为 null。
+ * @property {number|null} pointsBalance 积分余额，无数据时为 null。
  */
 
 export {};

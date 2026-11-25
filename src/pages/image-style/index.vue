@@ -107,7 +107,7 @@
         :cost="generationCost"
         :tokens="generationTokens"
         :estimated-time="estimatedTime || '待定'"
-        note="确认后按提示词实时计价扣除灵感点，模型未产出结果时自动退回本次积分；结果链接约 1 小时后失效，请及时保存。"
+        note="确认后按提示词实时计价扣除积分，模型未产出结果时自动退回本次积分；结果链接约 1 小时后失效，请及时保存。"
         confirm-text="确认研墨成画"
         :loading="isSubmitting"
         @cancel="confirmVisible = false"
@@ -299,7 +299,7 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
       getErrorMessage(error, "生成失败，请稍后重试。"),
     );
     uni.showToast({
-      title: data?.error_message || taskMessage.value,
+      title: taskMessage.value,
       icon: "none",
     });
   },
@@ -352,14 +352,20 @@ const appendPrompt = (value) => {
   );
 };
 
-// 返回上一页重新构思；页面栈为空时（如 H5 刷新后直达）回到构思页
+// 返回创作第一步，并保留本步尚未提交的编辑内容。
 const goBack = () => {
-  if (getCurrentPages().length > 1) {
+  saveCreationDraft(DRAFT_KEYS.image, {
+    ...draft.value,
+    style: selectedStyle.value,
+    prompt: prompt.value,
+  });
+  const pages = getCurrentPages();
+  if (pages[pages.length - 2]?.route === "pages/image-creation/index") {
     uni.navigateBack();
     return;
   }
 
-  uni.redirectTo({ url: "/pages/image-creation/index" });
+  uni.redirectTo({ url: "/pages/image-creation/index?resume=1" });
 };
 
 // 校验构思内容后弹出生成确认
@@ -475,7 +481,7 @@ const confirmGenerate = async () => {
     confirmVisible.value = false;
     draft.value = { ...draft.value, ...requestData };
     saveCreationDraft(DRAFT_KEYS.image, draft.value);
-    // 创建任务已扣减灵感点，刷新共享缓存供页头展示。
+    // 创建任务已扣减积分，刷新共享缓存供页头展示。
     loadPointsBalance({ force: true });
     taskId.value = task.task_id;
     progressVisible.value = true;

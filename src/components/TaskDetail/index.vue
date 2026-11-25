@@ -3,10 +3,7 @@
     <app-page-header title="作品详情" />
     <scroll-view scroll-y :show-scrollbar="false" class="detail-content">
       <view class="detail-body">
-        <view
-          class="detail-card"
-          :class="{ 'has-result': isCompleted && resultUrl }"
-        >
+        <view class="detail-card">
           <view class="detail-head">
             <view class="detail-title-group">
               <text class="detail-heading">{{ typeConfig.progressTitle }}</text>
@@ -14,7 +11,7 @@
                 {{ statusTag.text }}
               </text>
             </view>
-            <text class="detail-cost">{{ costText }}</text>
+            <text v-if="!isDraft" class="detail-cost">{{ costText }}</text>
           </view>
           <view v-if="displayTitle || canRename" class="detail-work-row">
             <text class="detail-work">{{ displayTitle }}</text>
@@ -67,6 +64,7 @@
               :key="videoKey"
               class="result-video"
               :src="resultUrl"
+              object-fit="contain"
               controls
               @error="handleVideoError"
             />
@@ -123,19 +121,14 @@
               </button>
             </view>
           </template>
-          <!-- 进度中展示进度环，任务结束后展示状态标签与提示 -->
-          <template v-else-if="!isFinished">
-            <view class="progress-ring">
-              <text> {{ progress }}<text class="progress-unit">%</text></text>
-              <label>{{ progressLabel }}</label>
-            </view>
-            <view class="progress-track">
-              <view :style="{ width: `${progress}%` }"></view>
-            </view>
-          </template>
           <view v-if="tip" class="detail-tip">{{ tip }}</view>
+          <view v-if="isDraft" class="detail-task-action">
+            <app-flow-button block :loading="isOpeningDraft" @click="resumeDraft">
+              继续编辑
+            </app-flow-button>
+          </view>
           <view
-            v-if="canCancel && !statusUnavailable"
+            v-else-if="canCancel && !statusUnavailable"
             class="detail-task-action"
           >
             <app-flow-button
@@ -239,6 +232,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
+import { getDraft } from "@/apis/drafts";
 import { TASK_STATUS } from "@/apis/constants";
 import { USE_MOCK } from "@/apis/config";
 import {
@@ -259,6 +253,7 @@ import AppPageHeader from "@/components/AppPageHeader/index.vue";
 import useTaskActions from "@/hooks/useTaskActions";
 import useTaskPolling from "@/hooks/useTaskPolling";
 import useImageUpload from "@/hooks/useImageUpload";
+import { openDraftEditor } from "@/utils/creation-draft";
 import { getErrorMessage, isApiError } from "@/utils/request";
 import { saveWorkMedia } from "@/utils/save-work-media";
 import { countPromptCharacters, normalizePromptInput } from "@/utils/prompt";
@@ -271,6 +266,7 @@ import {
 
 /**
  * 任务详情组件。
+ * @property {boolean} isDraft 是否展示尚未提交的草稿。
  * @property {string} taskId 任务公开标识，用于查询进度与结果。
  * @property {string} type 任务类型：image、optimization 或 video。
  * @property {string} title 作品标题，为空时不展示。
@@ -278,6 +274,7 @@ import {
  * @property {"creation" | "library"} from 入口来源，决定作品库按钮的文案与返回方式。
  */
 const props = defineProps({
+  isDraft: { type: Boolean, default: false },
   taskId: {
     type: String,
     default: "",
@@ -300,19 +297,16 @@ const props = defineProps({
 const TYPE_CONFIGS = {
   image: {
     progressTitle: "研墨成画",
-    progressLabel: "气韵流转",
     cost: 2,
     resultHint: "轻触图片放大查看；图片链接约 1 小时后失效，请及时保存",
   },
   optimization: {
     progressTitle: "淬炼重绘",
-    progressLabel: "气韵流转",
     cost: 1,
     resultHint: "轻触图片放大查看；图片链接约 1 小时后失效，请及时保存",
   },
   video: {
     progressTitle: "动卷渲染",
-    progressLabel: "逐帧渲染",
     cost: 5,
     resultHint: "视频链接可能过期，请及时保存",
   },
@@ -335,6 +329,8 @@ const currentType = ref(
     ? props.type
     : "image",
 );
+const isOpeningDraft = ref(false);
+let isDetailActive = true;
 const displayTitle = ref(props.title);
 const isRenameVisible = ref(false);
 const renameTitle = ref("");
@@ -438,7 +434,7 @@ const loadCover = async () => {
 const typeConfig = computed(() => TYPE_CONFIGS[currentType.value]);
 const displayCost = computed(() => costPoints.value ?? typeConfig.value.cost);
 const statusTag = computed(
-  () => STATUS_TAGS[status.value] || STATUS_TAGS[TASK_STATUS.PENDING],
+  () => props.isDraft ? { text: "草稿", className: "is-draft" } : STATUS_TAGS[status.value] || STATUS_TAGS[TASK_STATUS.PENDING],
 );
 const isCompleted = computed(() => status.value === TASK_STATUS.COMPLETED);
 const canRename = computed(
@@ -455,22 +451,9 @@ const canCancel = computed(
 const isFinished = computed(
   () => isCompleted.value || isFailed.value || isCanceled.value,
 );
-const progressLabel = computed(() => {
-  if (isCompleted.value) {
-    return "生成完成";
-  }
-
-  if (isFailed.value) {
-    return "生成失败";
-  }
-
-  if (isCanceled.value) {
-    return "已取消创作";
-  }
-
-  return typeConfig.value.progressLabel;
-});
 const tip = computed(() => {
+  if (props.isDraft) return "草稿已保存。";
+
   if (statusUnavailable.value) {
     return failureMessage.value || "暂时无法获取任务状态，请稍后重试。";
   }
@@ -489,7 +472,7 @@ const tip = computed(() => {
     return "";
   }
 
-  return "已进入云端处理，离开页面不影响任务进度。";
+  return `创作进度 ${progress.value}%`;
 });
 const retryActionText = computed(() => {
   if (isRetrying.value) {
@@ -592,7 +575,7 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
       getErrorMessage(error, "任务进度获取失败，请稍后重试"),
     );
     uni.showToast({
-      title: data?.error_message || failureMessage.value,
+      title: failureMessage.value,
       icon: "none",
     });
   },
@@ -882,6 +865,22 @@ const retryVideo = async () => {
   }
 };
 
+// 拉取当前草稿，恢复表单后进入对应的创作页面。
+const resumeDraft = async () => {
+  if (isOpeningDraft.value || !props.isDraft) return;
+  isOpeningDraft.value = true;
+  try {
+    const draft = await getDraft({ draftId: props.taskId });
+    if (isDetailActive) await openDraftEditor(draft, { replaceCurrent: true });
+  } catch (error) {
+    if (isDetailActive) {
+      uni.showToast({ title: getErrorMessage(error, "草稿打开失败"), icon: "none" });
+    }
+  } finally {
+    isOpeningDraft.value = false;
+  }
+};
+
 // 预览生成结果大图
 const previewResult = () => {
   if (!resultUrl.value) {
@@ -919,6 +918,7 @@ watch(
 );
 
 onUnmounted(() => {
+  isDetailActive = false;
   coverGeneration += 1;
   cancelSave();
   videoRequestId += 1;
@@ -926,6 +926,7 @@ onUnmounted(() => {
 });
 
 onMounted(() => {
+  if (props.isDraft) return;
   if (props.workId && props.type === "video") loadCover();
   if (!props.taskId) {
     uni.showToast({ title: "缺少任务标识", icon: "none" });
@@ -1104,50 +1105,6 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-.progress-ring {
-  margin: 48rpx auto 0;
-  width: 240rpx;
-  height: 240rpx;
-  border: 2rpx dashed #abd9d5;
-  border-radius: 50%;
-  background: rgba(228, 241, 238, 0.45);
-  text-align: center;
-}
-
-.progress-ring text {
-  display: block;
-  margin-top: 68rpx;
-  color: $color-ink;
-  font-size: 68rpx;
-  font-weight: 700;
-  @include numeric;
-}
-
-.progress-unit {
-  color: $color-primary;
-  font-size: 26rpx;
-}
-
-.progress-ring label {
-  display: block;
-  margin-top: 8rpx;
-  color: #4e665e;
-  font-size: 24rpx;
-}
-
-.progress-track {
-  height: 12rpx;
-  margin-top: 48rpx;
-  overflow: hidden;
-  border-radius: 8rpx;
-  background: #edf2ef;
-}
-
-.progress-track view {
-  height: 100%;
-  border-radius: inherit;
-  background: $color-primary;
-}
 
 .result-image {
   width: 100%;
@@ -1251,41 +1208,17 @@ onMounted(() => {
  * 桌面 H5 适配：卡片与操作栏使用居中窄栏，页头沿用全局左右贴边布局
  * ============================================================ */
 @media (min-width: $breakpoint-desktop) {
-  /* 内容区高度固定为页头与操作栏之间，卡片超出时收缩而不是整页滚动 */
   .detail-content {
     max-width: 760px;
     margin: 0 auto;
-    padding: 40px 0;
     padding-bottom: calc(120px + env(safe-area-inset-bottom));
   }
 
-  /* scroll-view 内部内容层撑满可视高度，供卡片按剩余空间计算图片高度 */
-  .detail-content :deep(.uni-scroll-view-content) {
-    height: 100%;
-  }
-
-  .detail-body {
-    height: 100%;
-    margin: 0;
-  }
-
   .detail-card {
+    --detail-preview-height: 280px;
+
     padding: 28px 32px 32px;
     border-radius: 16px;
-  }
-
-  .detail-card.has-result {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    height: 100%;
-    box-sizing: border-box;
-  }
-
-  .detail-card.has-result .detail-head,
-  .detail-card.has-result .detail-work-row,
-  .detail-card.has-result .result-hint {
-    flex-shrink: 0;
   }
 
   .detail-heading {
@@ -1304,6 +1237,7 @@ onMounted(() => {
 
   .detail-work-row {
     margin-top: 10px;
+    margin-bottom: 12px;
   }
 
   .detail-work {
@@ -1312,12 +1246,14 @@ onMounted(() => {
 
   .rename-trigger {
     width: auto;
-    height: auto;
-    gap: 8px;
-    padding: 6px 12px;
+    height: 28px;
+    gap: 6px;
+    padding: 0 10px;
+    box-sizing: border-box;
     border: 1px solid rgba(184, 134, 78, 0.35);
     border-radius: 999px;
-    font-size: 13px;
+    font-size: 12px;
+    line-height: 1;
   }
 
   .rename-icon {
@@ -1330,46 +1266,12 @@ onMounted(() => {
     display: block;
   }
 
-  .progress-ring {
-    width: 160px;
-    height: 160px;
-    margin-top: 32px;
-  }
 
-  .progress-ring text {
-    margin-top: 44px;
-    font-size: 40px;
-  }
-
-  .progress-unit {
-    font-size: 16px;
-  }
-
-  .progress-ring label {
-    margin-top: 4px;
-    font-size: 14px;
-  }
-
-  .progress-track {
-    height: 8px;
-    margin-top: 32px;
-  }
-
-  /* 结果图按原比例居中留边，容器不再整栏宽高比失衡；高度不足时先压缩图片 */
-  .result-image {
-    flex: 0 1 460px;
-    width: min(100%, 560px);
-    min-height: 0;
-    height: auto;
-    margin: 24px auto 0;
-    border-radius: 12px;
-  }
-
+  .result-image,
   .result-video {
-    flex: 0 1 420px;
-    width: min(100%, 640px);
-    min-height: 0;
-    height: auto;
+    display: block;
+    width: 100%;
+    height: var(--detail-preview-height);
     margin: 24px auto 0;
     border-radius: 12px;
   }
@@ -1398,7 +1300,6 @@ onMounted(() => {
     display: flex;
     gap: 12px;
     justify-content: center;
-    padding: 16px 32px 28px;
   }
 
   .detail-actions button {
