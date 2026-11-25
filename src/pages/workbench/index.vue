@@ -127,12 +127,14 @@
             >
             <button
               :disabled="isDraftAction || isOpeningDraft"
+              class="draft-action"
               @click="renameDraft(draft)"
             >
               改名
             </button>
             <button
               :disabled="isDraftAction || isOpeningDraft"
+              class="draft-action is-danger"
               @click="removeDraft(draft)"
             >
               删除
@@ -809,10 +811,36 @@ const startTool = (name) => {
   gap: 16rpx;
   margin-top: 12rpx;
   padding: 20rpx 16rpx;
-  border: 1rpx solid $color-line;
+  border: 1rpx solid #c69a57;
   border-radius: 16rpx;
   color: #4e665e;
   font-size: 24rpx;
+
+  .draft-action {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 8rpx 16rpx;
+    border: 1rpx solid #e7d4b7;
+    border-radius: 10rpx;
+    background: #fbf4e9;
+    color: #89663e;
+    font-size: 22rpx;
+    line-height: 1.5;
+
+    &.is-danger {
+      border-color: #edc9bf;
+      background: #fff7f4;
+      color: #b55340;
+    }
+
+    &[disabled] {
+      opacity: 0.5;
+    }
+
+    &::after {
+      border: 0;
+    }
+  }
 }
 
 .draft-name {

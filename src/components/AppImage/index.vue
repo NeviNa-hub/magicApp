@@ -10,7 +10,11 @@
     />
     <view v-else class="app-image-fallback">
       <text class="fallback-mark">墨</text>
-      <button v-if="failed && src && retryable" class="fallback-retry" @tap.stop="retryImage">
+      <button
+        v-if="failed && src && retryable"
+        class="fallback-retry"
+        @tap.stop="retryImage"
+      >
         重新加载
       </button>
     </view>
@@ -41,7 +45,7 @@ watch(
   () => {
     failed.value = false;
     imageKey.value += 1;
-  }
+  },
 );
 
 // 记录加载失败，统一改用占位底纹

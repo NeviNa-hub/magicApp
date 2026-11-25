@@ -4,7 +4,10 @@
       <button :class="{ 'is-active': showOriginal }" @tap="showOriginal = true">
         原图
       </button>
-      <button :class="{ 'is-active': !showOriginal }" @tap="showOriginal = false">
+      <button
+        :class="{ 'is-active': !showOriginal }"
+        @tap="showOriginal = false"
+      >
         优化后
       </button>
     </view>

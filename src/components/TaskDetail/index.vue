@@ -973,7 +973,7 @@ onMounted(() => {
 }
 
 .detail-card {
-  padding: 36rpx 40rpx 40rpx;
+  padding: 40rpx;
   border-radius: 32rpx;
   background: $color-surface;
   box-shadow: 0 10rpx 30rpx rgba(95, 133, 117, 0.06);
@@ -1217,7 +1217,7 @@ onMounted(() => {
   .detail-card {
     --detail-preview-height: 280px;
 
-    padding: 28px 32px 32px;
+    padding: 32px;
     border-radius: 16px;
   }
 
