@@ -4,20 +4,20 @@
 
 ## 功能概览
 
-| 模块 | 说明 |
-| --- | --- |
-| 账号 | 注册、登录、退出、资料修改、头像上传与账号注销 |
-| 首页与创作台 | 浏览创作入口、选择创作类型、恢复草稿并查看任务 |
-| 文字生图 | 编辑提示词、选择画风和画幅、优化提示词、报价并生成图片 |
-| 图片优化 | 上传图片、选择优化提示词、查看报价、生成结果并对比原图 |
-| 视频创作 | 设置提示词、画幅和时长，查看报价、创建视频并播放结果 |
-| 图片处理 | 上传前校验与压缩、上传进度和取消、批量图片优化 |
-| 作品库 | 搜索标题或提示词、按类型筛选和时间排序；修改标题、删除及分页查看 |
-| 作品预览 | 保存图片或视频、分享作品、设置视频封面 |
-| 草稿 | 手动保存、分页查看、继续编辑、修改名称和删除草稿 |
-| 工作坊 | 按分类浏览创作模板，并将模板参数带入创作页面 |
-| 通知与积分 | 查看完成通知和未读数、积分余额、报价及积分流水 |
-| 跨端体验 | 适配 App、H5 和微信小程序；提供弱网、权限及加载失败提示 |
+| 模块     | 说明                               |
+| ------ | -------------------------------- |
+| 账号     | 注册、登录、退出、资料修改、头像上传与账号注销          |
+| 首页与创作台 | 浏览创作入口、选择创作类型、恢复草稿并查看任务          |
+| 文字生图   | 编辑提示词、选择画风和画幅、优化提示词、报价并生成图片      |
+| 图片优化   | 上传图片、选择优化提示词、查看报价、生成结果并对比原图      |
+| 视频创作   | 设置提示词、画幅和时长，查看报价、创建视频并播放结果       |
+| 图片处理   | 上传前校验与压缩、上传进度和取消、批量图片优化          |
+| 作品库    | 搜索标题或提示词、按类型筛选和时间排序；修改标题、删除及分页查看 |
+| 作品预览   | 保存图片或视频、分享作品、设置视频封面              |
+| 草稿     | 手动保存、分页查看、继续编辑、修改名称和删除草稿         |
+| 工作坊    | 按分类浏览创作模板，并将模板参数带入创作页面           |
+| 通知与积分  | 查看完成通知和未读数、积分余额、报价及积分流水          |
+| 跨端体验   | 适配 App、H5 和微信小程序；提供弱网、权限及加载失败提示  |
 
 ## 技术栈
 
@@ -42,6 +42,15 @@ VITE_USE_MOCK=false
 VITE_API_BASE_URL=https://你的服务域名/api
 ```
 
+## github推送不成功的解决方法
+
+```bash
+git config --global http.proxy <http://127.0.0.1:7890>
+git config --global https.proxy <http://127.0.0.1:7890>
+```
+
+<br />
+
 ## 目录结构
 
 ```
@@ -60,42 +69,39 @@ src/
 ## APP端 实现效果预览。
 
 ### 登录 / 注册
+
 <img width="375" height="812" alt="image" src="https://github.com/user-attachments/assets/784b4055-d5ea-45bf-bf31-45d7ce3df7e5" />
 <img width="375" height="812" alt="image" src="https://github.com/user-attachments/assets/644cd5bb-0eaf-469e-bc39-077db537d41d" />
 
-
-
 ### 首页 · 文稿库
+
 <img width="374" height="813" alt="image" src="https://github.com/user-attachments/assets/c9c23b41-e923-42ae-ad65-386ce330c90f" />
 
-
 ### 创作台
+
 <img width="452" height="1013" alt="image" src="https://github.com/user-attachments/assets/55566962-d640-495c-8fef-2c65aee366d8" />
 <img width="452" height="1013" alt="image" src="https://github.com/user-attachments/assets/8d803e2e-992d-4b99-865b-48dc7d22b2c0" />
 
-
-
 ### 文字生图
+
 <img width="450" height="1013" alt="image" src="https://github.com/user-attachments/assets/0d606c14-036a-4a06-b70f-0ddbb2fe0e87" />
 <img width="450" height="1013" alt="image" src="https://github.com/user-attachments/assets/1e802c53-323d-46a7-bb73-7b3c2d545724" />
 <img width="450" height="1013" alt="image" src="https://github.com/user-attachments/assets/580b01e0-9c24-402e-a9aa-fa7e272fe71f" />
 <img width="450" height="1013" alt="image" src="https://github.com/user-attachments/assets/d8d5147d-2c2b-4c3f-b32f-10104ee6e82b" />
 
-
 ### 视频创作
+
 <img width="450" height="1013" alt="image" src="https://github.com/user-attachments/assets/f67bc1c1-80c1-4313-8d6e-3503e1ed55ef" />
 <img width="450" height="1013" alt="image" src="https://github.com/user-attachments/assets/2ddc4105-4836-4cb9-ba84-7c3c2e57c0f5" />
 <img width="453" height="330" alt="image" src="https://github.com/user-attachments/assets/bdf1c4dc-0748-4a82-b61d-e7d76ff72054" />
 
-
-
 ### 图片优化
+
 <img width="450" height="1013" alt="image" src="https://github.com/user-attachments/assets/dce2fb18-2ec7-481b-b66d-ad939754f3f2" />
 <img width="465" height="522" alt="image" src="https://github.com/user-attachments/assets/4adb282b-2687-4ff2-8eb9-c95d7e66adb8" />
 
-
-
 ### 作品库
+
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/58266e43-5433-46e8-b525-1f9d598188ca" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/8cdaf510-1ac0-47ab-94f1-05e0e74bc261" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/8ce272da-d62f-42f0-b0f4-49eef0fccabc" />
@@ -103,27 +109,25 @@ src/
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/d031a072-ea20-4984-994a-925902a82faa" />
 
 ### 作品详情
+
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/242ef8a3-d7ab-49ea-8087-61e157e46cd8" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/6980fd90-bf13-4a1f-8c11-f3ef5778cddc" />
 
-
 ### 我的
+
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/5aec0145-aa6b-4ebc-8aa3-8fdef6233d20" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/3eac76b8-0ee7-443e-bc8e-47a171df8736" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/764f41c4-026a-4101-9fa1-f28cfb80b198" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/0e94086d-f583-4c4e-9e50-fea8596fe124" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/a531950f-7dbc-45aa-b3cb-a25d7fd52ccf" />
 
-
-
-
 ### 工作坊
+
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/9a9833f9-48f3-4be8-a9f0-3a776b61645e" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/7afe23e0-ded9-4bc9-8a63-bbd0699772e6" />
 
-
-
 ## PC端 实现效果预览。
+
 <img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/d2b0e214-cbdc-4be6-a27d-f9523d2b7d5d" />
 <img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/6108e8fd-87bb-42d4-871d-8d52e719a522" />
 <img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/78c8d1b3-6458-44f8-9139-2abbbe46317d" />
@@ -131,4 +135,3 @@ src/
 <img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/a9d28883-7070-49cc-a115-e3c373110777" />
 <img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/b330054d-1e0a-4097-81e9-53877b682abb" />
 <img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/428cb3ad-b545-4faf-8792-d04ee808951f" />
-
