@@ -124,7 +124,6 @@ src/
 ## PC端 实现效果预览。
 <img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/d2b0e214-cbdc-4be6-a27d-f9523d2b7d5d" />
 <img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/6108e8fd-87bb-42d4-871d-8d52e719a522" />
-<img width="2229" height="1214" alt="image" src="https://github.com/user-attachments/assets/35d49018-01a0-4773-b91b-85c1e8629710" />
 <img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/78c8d1b3-6458-44f8-9139-2abbbe46317d" />
 <img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/24581f43-cf6f-42a7-a51b-fcd11606aab7" />
 <img width="2229" height="1215" alt="image" src="https://github.com/user-attachments/assets/a9d28883-7070-49cc-a115-e3c373110777" />
