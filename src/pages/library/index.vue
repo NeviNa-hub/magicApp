@@ -126,12 +126,19 @@
               :asset-id="work.coverAssetId"
               :mock-url="work.coverUrl"
             />
-            <text class="work-type">{{ work.typeName }}</text>
+            <text v-if="!work.coverAssetId" class="work-type">
+              {{ work.typeName }}
+            </text>
             <view class="work-info">
               <view class="work-title-row">
                 <text class="work-title">{{ work.title }}</text>
               </view>
-              <text class="work-time">{{ work.time }}</text>
+              <view class="work-meta">
+                <text v-if="work.coverAssetId" class="work-type is-inline">
+                  {{ work.typeName }}
+                </text>
+                <text class="work-time">{{ work.time }}</text>
+              </view>
             </view>
             <view class="work-status" :class="`is-${work.status}`">
               <!-- #ifdef H5 -->
@@ -509,9 +516,9 @@ onUnmounted(cleanupSearch);
 
 <style scoped lang="scss">
 .work-cover {
-  width: 84rpx;
-  height: 84rpx;
-  margin-right: 16rpx;
+  width: 112rpx;
+  height: 112rpx;
+  overflow: hidden;
   border-radius: 12rpx;
   flex-shrink: 0;
 }
@@ -707,6 +714,21 @@ onUnmounted(cleanupSearch);
   font-size: 22rpx;
   line-height: 1.4;
   @include numeric;
+}
+
+.work-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6rpx 12rpx;
+
+  .work-type.is-inline {
+    padding: 2rpx 8rpx;
+    border-radius: 6rpx;
+    font-size: 18rpx;
+    line-height: 1.4;
+    box-shadow: none;
+  }
 }
 
 .work-status {

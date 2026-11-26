@@ -1,6 +1,7 @@
 <template>
   <!-- 进度弹窗不提供遮罩关闭，避免任务进行中误触后失去进度入口 -->
   <app-bottom-sheet
+    class="generation-dialog"
     placement="bottom"
     align="center"
     :title="dialogTitle"
@@ -193,6 +194,17 @@ const previewResult = () => {
 </script>
 
 <style scoped lang="scss">
+@media (min-width: $breakpoint-desktop) {
+  .generation-dialog {
+    align-items: center;
+    justify-content: center;
+
+    :deep(.sheet.is-bottom) {
+      border-radius: 20px;
+    }
+  }
+}
+
 .progress-circle {
   width: 150rpx;
   height: 150rpx;

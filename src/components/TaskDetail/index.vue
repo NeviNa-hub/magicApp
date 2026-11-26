@@ -36,7 +36,7 @@
                 @tap="chooseCover"
               >
                 {{
-                  isCoverUploading
+                  isCoverUploading && !isChoosingCover
                     ? "封面上传中"
                     : isSavingCover
                       ? "保存中"
@@ -52,10 +52,10 @@
               >
                 移除封面
               </button>
-              <button v-if="isCoverUploading" @tap="cancelCoverUpload">
+              <button v-if="isCoverUploading && !isChoosingCover" @tap="cancelCoverUpload">
                 取消上传
               </button>
-              <button v-else-if="canRetryCover" @tap="retryCoverUpload">
+              <button v-else-if="canRetryCover && !isChoosingCover" @tap="retryCoverUpload">
                 重试上传
               </button>
             </view>
@@ -354,7 +354,7 @@ const canUseWebShare =
   typeof navigator !== "undefined" && typeof navigator.share === "function";
 // #endif
 const status = ref(TASK_STATUS.PENDING);
-const progress = ref(0);
+const progress = ref(null);
 const resultUrl = ref("");
 const originalId = ref("");
 const videoError = ref(false);
@@ -400,6 +400,7 @@ const saveCover = async (assetId, localUrl = "") => {
 };
 
 const {
+  isChoosing: isChoosingCover,
   isUploading: isCoverUploading,
   canRetryUpload: canRetryCover,
   chooseImage: chooseCover,
@@ -472,7 +473,7 @@ const tip = computed(() => {
     return "";
   }
 
-  return `创作进度 ${progress.value}%`;
+  return progress.value === null ? "正在处理，请稍候…" : `创作进度 ${progress.value}%`;
 });
 const retryActionText = computed(() => {
   if (isRetrying.value) {
@@ -546,7 +547,7 @@ const { start: startPolling, stop: stopPolling } = useTaskPolling({
     syncTaskBilling(data);
     originalId.value = String(data.original_upload_id || "");
     status.value = data.status || TASK_STATUS.PROCESSING;
-    progress.value = Number(data.progress) || 0;
+    progress.value = data.progress == null ? null : Number(data.progress);
 
     if (data.result_urls?.[0]) {
       resultUrl.value = data.result_urls[0];
@@ -600,7 +601,7 @@ const refreshTaskStatus = async () => {
     syncTaskCost(data);
     syncTaskBilling(data);
     status.value = data.status || TASK_STATUS.PROCESSING;
-    progress.value = Number(data.progress) || 0;
+    progress.value = data.progress == null ? null : Number(data.progress);
     resultUrl.value = data.result_urls?.[0] || "";
     if (data.status === TASK_STATUS.COMPLETED) {
       status.value = TASK_STATUS.COMPLETED;
@@ -654,7 +655,7 @@ const { cancelTask, retryTask, isCanceling, isRetrying } = useTaskActions({
     syncTaskCost(data);
     syncTaskBilling(data);
     status.value = TASK_STATUS.PENDING;
-    progress.value = Number(data?.progress) || 0;
+    progress.value = data?.progress == null ? null : Number(data.progress);
     resultUrl.value = "";
     failureMessage.value = "";
     startPolling();
@@ -941,9 +942,34 @@ onMounted(() => {
 .cover-settings {
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
-  gap: 16rpx;
+  gap: 12rpx;
+  margin-top: 16rpx;
   margin-bottom: 16rpx;
+
+  button {
+    margin: 0;
+    padding: 10rpx 24rpx;
+    border: 1rpx solid #e7d4b7;
+    border-radius: 12rpx;
+    background: #fbf4e9;
+    color: #89663e;
+    font-size: 24rpx;
+    line-height: 1.5;
+
+    &:active {
+      background: #f3e5cf;
+    }
+
+    &[disabled] {
+      opacity: 0.5;
+    }
+
+    &::after {
+      border: 0;
+    }
+  }
 }
 
 .cover-preview {
