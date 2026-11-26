@@ -100,9 +100,11 @@ src/
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/8cdaf510-1ac0-47ab-94f1-05e0e74bc261" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/8ce272da-d62f-42f0-b0f4-49eef0fccabc" />
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/d142d979-9015-4c4a-8999-054502d7e0af" />
+<img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/d031a072-ea20-4984-994a-925902a82faa" />
 
 ### 作品详情
 <img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/242ef8a3-d7ab-49ea-8087-61e157e46cd8" />
+<img width="495" height="1074" alt="image" src="https://github.com/user-attachments/assets/6980fd90-bf13-4a1f-8c11-f3ef5778cddc" />
 
 
 ### 我的
